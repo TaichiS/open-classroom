@@ -1,0 +1,382 @@
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Textarea } from '@/components/ui/Textarea'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
+import { Label } from '@/components/ui/Label'
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog'
+import {
+  ArrowLeft,
+  BookOpen,
+  LogOut,
+  Plus,
+  Users,
+  Clock,
+  MousePointerClick,
+  FileText,
+  Link as LinkIcon,
+  Image as ImageIcon,
+  Loader2,
+  Trash2,
+  Eye,
+} from 'lucide-vue-next'
+import {
+  findCourseById,
+  getAssignmentsByCourse,
+  getMembersByCourse,
+  findProfileById,
+  saveAssignment,
+  deleteAssignment,
+} from '@/lib/db'
+import { supabase } from '@/lib/supabase'
+import type { Course, Assignment, SubmitType, CourseMember } from '@/types'
+
+const router = useRouter()
+const route = useRoute()
+const authStore = useAuthStore()
+
+const course = ref<Course | null>(null)
+const assignments = ref<Assignment[]>([])
+const members = ref<CourseMember[]>([])
+const memberNameMap = ref<Record<string, string>>({})
+const isCreateDialogOpen = ref(false)
+const isCreating = ref(false)
+
+const newAssignment = ref({
+  title: '',
+  description: '',
+  submitType: 'complete' as SubmitType,
+  releaseDate: '',
+  dueDate: '',
+  showcaseEnabled: true,
+  showcaseRequireApproval: true,
+})
+
+const courseId = computed(() => route.params.id as string)
+
+const submitTypes: { value: SubmitType; label: string; icon: any }[] = [
+  { value: 'complete', label: '點擊完成', icon: MousePointerClick },
+  { value: 'file', label: '檔案上傳', icon: FileText },
+  { value: 'link', label: '連結提交', icon: LinkIcon },
+  { value: 'image', label: '圖片上傳', icon: ImageIcon },
+]
+
+onMounted(async () => {
+  await loadData()
+})
+
+async function loadData() {
+  const courseData = await findCourseById(courseId.value)
+  if (!courseData || courseData.teacherId !== authStore.profile?.id) {
+    router.push('/teacher')
+    return
+  }
+  course.value = courseData
+  assignments.value = await getAssignmentsByCourse(courseId.value)
+  members.value = await getMembersByCourse(courseId.value)
+  await loadMemberNames()
+}
+
+async function loadMemberNames() {
+  const entries = await Promise.all(
+    members.value.map(async (m) => {
+      const profile = await findProfileById(m.studentId)
+      return [m.studentId, profile?.name ?? '未知學生'] as const
+    })
+  )
+  memberNameMap.value = Object.fromEntries(entries)
+}
+
+function getStudentName(studentId: string): string {
+  return memberNameMap.value[studentId] ?? '未知學生'
+}
+
+async function handleCreateAssignment() {
+  if (!newAssignment.value.title.trim() || !course.value) return
+
+  isCreating.value = true
+
+  try {
+    const maxOrderIndex = assignments.value.length > 0
+      ? Math.max(...assignments.value.map(a => a.orderIndex))
+      : -1
+
+    const created = await saveAssignment({
+      courseId: course.value.id,
+      title: newAssignment.value.title.trim(),
+      description: newAssignment.value.description.trim(),
+      orderIndex: maxOrderIndex + 1,
+      submitType: newAssignment.value.submitType,
+      releaseDate: newAssignment.value.releaseDate
+        ? new Date(newAssignment.value.releaseDate).toISOString()
+        : new Date().toISOString(),
+      dueDate: newAssignment.value.dueDate
+        ? new Date(newAssignment.value.dueDate).toISOString()
+        : undefined,
+      isActive: true,
+      showcaseEnabled: newAssignment.value.showcaseEnabled,
+      showcaseRequireApproval: newAssignment.value.showcaseRequireApproval,
+    })
+
+    // Notify enrolled students via email
+    supabase.functions.invoke('send-email', {
+      body: { assignmentId: created.id, type: 'assignment_released' }
+    }).catch(console.error) // Non-blocking: don't fail if email fails
+
+    newAssignment.value = {
+      title: '',
+      description: '',
+      submitType: 'complete',
+      releaseDate: '',
+      dueDate: '',
+      showcaseEnabled: true,
+      showcaseRequireApproval: true,
+    }
+    isCreateDialogOpen.value = false
+    await loadData()
+  } catch (e) {
+    console.error('Failed to create assignment:', e)
+  } finally {
+    isCreating.value = false
+  }
+}
+
+async function handleDeleteAssignment(assignmentId: string) {
+  if (confirm('確定要刪除此作業嗎？此操作無法復原。')) {
+    await deleteAssignment(assignmentId)
+    await loadData()
+  }
+}
+
+function handleLogout() {
+  authStore.logout()
+  router.push('/login')
+}
+</script>
+
+<template>
+  <div v-if="course" class="min-h-screen bg-slate-50">
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <Button variant="ghost" size="sm" @click="router.push('/teacher')">
+            <ArrowLeft class="h-4 w-4 mr-2" />
+            返回
+          </Button>
+          <div class="flex items-center gap-2">
+            <BookOpen class="h-6 w-6 text-slate-900" />
+            <span class="text-xl font-bold">{{ course.name }}</span>
+          </div>
+        </div>
+        <Button variant="ghost" size="sm" @click="handleLogout">
+          <LogOut class="h-4 w-4 mr-2" />
+          登出
+        </Button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- Course Info -->
+      <div class="mb-8">
+        <p class="text-slate-600 mb-4">{{ course.description }}</p>
+        <div class="flex items-center gap-4 text-sm text-slate-600">
+          <span class="flex items-center gap-1">
+            <Users class="h-4 w-4" />
+            {{ members.length }} 位學生
+          </span>
+          <Badge variant="secondary">課程碼：{{ course.courseCode }}</Badge>
+        </div>
+      </div>
+
+      <!-- Students List -->
+      <Card class="mb-8">
+        <CardHeader>
+          <CardTitle class="text-lg">學生名單</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div v-if="members.length === 0" class="text-center py-4 text-slate-500">
+            <p>尚無學生加入此課程</p>
+          </div>
+          <div v-else class="flex flex-wrap gap-2">
+            <Badge
+              v-for="member in members"
+              :key="member.id"
+              variant="outline"
+            >
+              {{ getStudentName(member.studentId) }}
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      <!-- Assignments -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-semibold">課程作業</h2>
+          <Button @click="isCreateDialogOpen = true">
+            <Plus class="h-4 w-4 mr-2" />
+            新增作業
+          </Button>
+        </div>
+
+        <div v-if="assignments.length === 0" class="text-center py-12 text-slate-500">
+          <p>此課程暫無作業</p>
+          <p class="text-sm">點擊上方按鈕新增作業！</p>
+        </div>
+        <div v-else class="space-y-4">
+          <Card
+            v-for="assignment in assignments"
+            :key="assignment.id"
+          >
+            <CardContent class="p-6">
+              <div class="flex items-start justify-between">
+                <div>
+                  <div class="flex items-center gap-2 mb-1">
+                    <h3 class="font-semibold">{{ assignment.title }}</h3>
+                    <Badge variant="outline">
+                      <component :is="submitTypes.find(t => t.value === assignment.submitType)?.icon" class="h-3 w-3 mr-1" />
+                      {{ submitTypes.find(t => t.value === assignment.submitType)?.label }}
+                    </Badge>
+                  </div>
+                  <p class="text-sm text-slate-600 mb-2">{{ assignment.description }}</p>
+                  <div class="flex items-center gap-4 text-sm text-slate-500">
+                    <span class="flex items-center gap-1">
+                      <Clock class="h-4 w-4" />
+                      發布：{{ new Date(assignment.releaseDate).toLocaleDateString('zh-TW') }}
+                    </span>
+                    <span v-if="assignment.dueDate" class="flex items-center gap-1">
+                      <Clock class="h-4 w-4" />
+                      截止：{{ new Date(assignment.dueDate).toLocaleDateString('zh-TW') }}
+                    </span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <router-link :to="`/teacher/submissions/${assignment.id}`">
+                    <Button variant="outline" size="sm">
+                      <Eye class="h-4 w-4 mr-1" />
+                      查看提交
+                    </Button>
+                  </router-link>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    @click="handleDeleteAssignment(assignment.id)"
+                  >
+                    <Trash2 class="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </main>
+
+    <!-- Create Assignment Dialog -->
+    <Dialog v-model:open="isCreateDialogOpen">
+      <div class="space-y-4">
+        <DialogHeader>
+          <DialogTitle>新增作業</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="space-y-2">
+            <Label for="title">作業標題</Label>
+            <Input
+              id="title"
+              v-model="newAssignment.title"
+              placeholder="輸入作業標題"
+            />
+          </div>
+          <div class="space-y-2">
+            <Label for="description">作業描述</Label>
+            <Textarea
+              id="description"
+              v-model="newAssignment.description"
+              placeholder="輸入作業描述"
+              :rows="3"
+            />
+          </div>
+          <div class="space-y-2">
+            <Label>提交方式</Label>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                v-for="type in submitTypes"
+                :key="type.value"
+                type="button"
+                :class="[
+                  'flex items-center gap-2 p-3 rounded-lg border transition-colors',
+                  newAssignment.submitType === type.value
+                    ? 'border-slate-900 bg-slate-50'
+                    : 'border-slate-200 hover:bg-slate-50'
+                ]"
+                @click="newAssignment.submitType = type.value"
+              >
+                <component :is="type.icon" class="h-4 w-4" />
+                <span class="text-sm">{{ type.label }}</span>
+              </button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <Label for="releaseDate">發布時間</Label>
+              <Input
+                id="releaseDate"
+                v-model="newAssignment.releaseDate"
+                type="datetime-local"
+              />
+            </div>
+            <div class="space-y-2">
+              <Label for="dueDate">截止時間（選填）</Label>
+              <Input
+                id="dueDate"
+                v-model="newAssignment.dueDate"
+                type="datetime-local"
+              />
+            </div>
+          </div>
+          <div class="space-y-2">
+            <Label class="flex items-center gap-2">
+              <input
+                v-model="newAssignment.showcaseEnabled"
+                type="checkbox"
+                class="w-4 h-4"
+              />
+              啟用作業展示
+            </Label>
+            <Label v-if="newAssignment.showcaseEnabled" class="flex items-center gap-2 ml-6">
+              <input
+                v-model="newAssignment.showcaseRequireApproval"
+                type="checkbox"
+                class="w-4 h-4"
+              />
+              需要老師審核
+            </Label>
+          </div>
+          <div class="flex justify-end gap-2">
+            <Button variant="outline" @click="isCreateDialogOpen = false">
+              取消
+            </Button>
+            <Button
+              :disabled="!newAssignment.title.trim() || isCreating"
+              @click="handleCreateAssignment"
+            >
+              <Loader2 v-if="isCreating" class="mr-2 h-4 w-4 animate-spin" />
+              {{ isCreating ? '建立中...' : '建立' }}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Dialog>
+  </div>
+</template>
