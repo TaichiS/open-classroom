@@ -14,7 +14,7 @@ export default async function handler(req: Request): Promise<Response> {
   const id = parts[parts.length - 2]
 
   const body = await req.json()
-  if (typeof body.feedback !== 'string' || body.feedback === '') return errorResponse('feedback is required')
+  if (typeof body.feedback !== 'string' || body.feedback === '') return errorResponse('feedback is required', 400)
 
   const { data, error } = await supabase
     .from('submissions')
