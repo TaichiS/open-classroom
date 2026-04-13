@@ -42,3 +42,6 @@ CLAUDE.md
 # Internal design documents
 需求與設計文件.md
 system-design.md
+
+# Git worktrees
+.worktrees/
