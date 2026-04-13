@@ -10,7 +10,7 @@ export default async function handler(req: Request): Promise<Response> {
 
     const url = new URL(req.url)
     const assignmentId = url.searchParams.get('assignmentId')
-    if (!assignmentId) return errorResponse('assignmentId is required')
+    if (!assignmentId) return errorResponse('assignmentId is required', 400)
 
     const { data: submissions, error } = await supabase
       .from('submissions')
@@ -44,7 +44,7 @@ export default async function handler(req: Request): Promise<Response> {
     const body = await req.json()
     const { assignmentId, submitData } = body
 
-    if (!assignmentId) return errorResponse('assignmentId is required')
+    if (!assignmentId) return errorResponse('assignmentId is required', 400)
 
     // 取得作業的 courseId
     const { data: assignment } = await supabase

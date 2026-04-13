@@ -15,15 +15,12 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (!Array.isArray(feedbacks)) return errorResponse('feedbacks[] is required')
 
-  let updated = 0
-  for (const { submissionId, feedback } of feedbacks) {
-    const { error } = await supabase
-      .from('submissions')
-      .update({ feedback })
-      .eq('id', submissionId)
-
-    if (!error) updated++
-  }
+  const results = await Promise.all(
+    feedbacks.map(({ submissionId, feedback }) =>
+      supabase.from('submissions').update({ feedback }).eq('id', submissionId)
+    )
+  )
+  const updated = results.filter(r => !r.error).length
 
   return jsonResponse({ updated })
 }
