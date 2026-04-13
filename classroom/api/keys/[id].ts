@@ -9,7 +9,8 @@ export default async function handler(req: Request): Promise<Response> {
   if (!auth) return errorResponse('Unauthorized', 401)
 
   const url = new URL(req.url)
-  const id = url.pathname.split('/').at(-1)!
+  const parts = url.pathname.split('/')
+  const id = parts[parts.length - 1]
 
   // 只能刪除自己的 key（user_id 限制確保安全）
   const { error } = await supabase

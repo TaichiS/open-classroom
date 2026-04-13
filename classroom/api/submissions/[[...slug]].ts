@@ -1,4 +1,3 @@
-import { createHash } from 'crypto'
 import { verifyApiKey, jsonResponse, errorResponse } from '../_lib/auth'
 import { supabase } from '../_lib/supabase'
 

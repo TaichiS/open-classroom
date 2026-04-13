@@ -9,7 +9,8 @@ export default async function handler(req: Request): Promise<Response> {
   if (auth.role !== 'teacher') return errorResponse('Forbidden', 403)
 
   const url = new URL(req.url)
-  const id = url.pathname.split('/').at(-1)!
+  const parts = url.pathname.split('/')
+  const id = parts[parts.length - 1]
 
   const body = await req.json()
 
