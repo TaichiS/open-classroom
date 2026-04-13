@@ -13,7 +13,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (slug.endsWith('/feedback') && req.method === 'PATCH') {
     if (auth.role !== 'teacher') return errorResponse('Forbidden', 403)
     const id = slug.replace('/feedback', '')
-    const body = await req.json()
+    const body = await req.json() as any
     if (typeof body.feedback !== 'string' || body.feedback === '')
       return errorResponse('feedback is required', 400)
     const { data, error } = await supabase
@@ -30,7 +30,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (slug === 'batch-feedback') {
     if (req.method !== 'POST') return errorResponse('Method not allowed', 405)
     if (auth.role !== 'teacher') return errorResponse('Forbidden', 403)
-    const body = await req.json()
+    const body = await req.json() as any
     const { feedbacks } = body as { feedbacks: { submissionId: string; feedback: string }[] }
     if (!Array.isArray(feedbacks)) return errorResponse('feedbacks[] is required', 400)
     const results = await Promise.all(
@@ -101,7 +101,7 @@ export default async function handler(req: Request): Promise<Response> {
 
     if (req.method === 'POST') {
       if (auth.role !== 'student') return errorResponse('Forbidden', 403)
-      const body = await req.json()
+      const body = await req.json() as any
       const { assignmentId, submitData } = body
       if (!assignmentId) return errorResponse('assignmentId is required', 400)
       const { data: assignment } = await supabase

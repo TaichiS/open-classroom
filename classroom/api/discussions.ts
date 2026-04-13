@@ -43,7 +43,7 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (req.method === 'POST') {
-    const body = await req.json()
+    const body = await req.json() as any
     const { assignmentId, courseId, content, parentId } = body
 
     if (!assignmentId || !courseId || !content) {

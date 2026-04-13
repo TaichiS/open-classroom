@@ -9,7 +9,7 @@ export default async function handler(req: Request): Promise<Response> {
   const auth = await verifySessionJwt(req)
   if (!auth) return errorResponse('Unauthorized', 401)
 
-  const body = await req.json()
+  const body = await req.json() as any
   const { label } = body
   if (!label || typeof label !== 'string') return errorResponse('label is required', 400)
 

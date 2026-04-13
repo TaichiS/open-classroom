@@ -12,7 +12,7 @@ export default async function handler(req: Request): Promise<Response> {
   const parts = url.pathname.split('/')
   const id = parts[parts.length - 1]
 
-  const body = await req.json()
+  const body = await req.json() as any
 
   // camelCase → snake_case 對應
   const mapping: Record<string, string> = {

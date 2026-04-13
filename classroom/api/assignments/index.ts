@@ -30,7 +30,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'POST') {
     if (auth.role !== 'teacher') return errorResponse('Forbidden', 403)
 
-    const body = await req.json()
+    const body = await req.json() as any
     const { data, error } = await supabase
       .from('assignments')
       .insert({
