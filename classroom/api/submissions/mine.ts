@@ -23,6 +23,8 @@ export default async function handler(req: Request): Promise<Response> {
 
   const assignmentIds = assignments.map((a: { id: string }) => a.id)
 
+  if (assignmentIds.length === 0) return jsonResponse([])
+
   const { data: submissions, error: sError } = await supabase
     .from('submissions')
     .select('*')
