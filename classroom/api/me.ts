@@ -1,5 +1,4 @@
-import { verifyApiKey, jsonResponse, errorResponse } from './_lib/auth'
-import { supabase } from './_lib/supabase'
+import { verifyApiKey, jsonResponse, errorResponse, supabase } from './_lib/all.ts'
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'GET') return errorResponse('Method not allowed', 405)

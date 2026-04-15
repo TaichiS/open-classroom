@@ -1,5 +1,4 @@
-import { verifySessionJwt, jsonResponse, errorResponse } from '../_lib/auth'
-import { supabase } from '../_lib/supabase'
+import { verifySessionJwt, jsonResponse, errorResponse, supabase } from '../_lib/all.ts'
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== 'DELETE') return errorResponse('Method not allowed', 405)

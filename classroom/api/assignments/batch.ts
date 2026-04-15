@@ -1,5 +1,4 @@
-import { verifyApiKey, jsonResponse, errorResponse } from '../_lib/auth'
-import { supabase } from '../_lib/supabase'
+import { verifyApiKey, jsonResponse, errorResponse, supabase } from '../_lib/index.js'
 
 interface AssignmentInput {
   title: string
