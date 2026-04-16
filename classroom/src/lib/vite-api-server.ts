@@ -25,7 +25,7 @@ export default function apiMiddleware() {
           // 首次請求時預熱快取
           if (!warmupComplete) {
             console.log('🔥 預熱 API 快取...')
-            const indexPath = path.join(__dirname, 'api', 'index.ts')
+            const indexPath = path.join(__dirname, '..', '..', 'api', '_router.ts')
             const indexModule = await import(indexPath)
             apiIndex = indexModule
             await apiIndex.warmupCache()
