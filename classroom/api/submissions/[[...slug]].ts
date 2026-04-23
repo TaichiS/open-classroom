@@ -1,6 +1,6 @@
-import { verifyApiKey, jsonResponse, errorResponse, supabase } from '../_lib/all.ts'
+import { verifyApiKey, jsonResponse, errorResponse, supabase, withErrorHandler } from '../_lib/all.ts'
 
-export default async function handler(req: Request): Promise<Response> {
+export default withErrorHandler(async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url)
   const rawSlug = url.pathname.replace(/^\/api\/submissions\/?/, '')
   const slug = rawSlug || ''
@@ -145,4 +145,4 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   return errorResponse('Not found', 404)
-}
+})

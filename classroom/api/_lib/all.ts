@@ -77,3 +77,18 @@ export function jsonResponse(body: unknown, status = 200): Response {
 export function errorResponse(message: string, status = 400): Response {
   return jsonResponse({ error: message }, status)
 }
+
+// ==================== 錯誤處理包裝 ====================
+
+type Handler = (req: Request) => Promise<Response>
+
+export function withErrorHandler(handler: Handler): Handler {
+  return async (req: Request) => {
+    try {
+      return await handler(req)
+    } catch (err) {
+      console.error(`[${req.method} ${new URL(req.url).pathname}] Unhandled error:`, err)
+      return errorResponse('Internal server error', 500)
+    }
+  }
+}

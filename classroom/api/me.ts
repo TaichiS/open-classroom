@@ -1,6 +1,6 @@
-import { verifyApiKey, jsonResponse, errorResponse, supabase } from './_lib/all.ts'
+import { verifyApiKey, jsonResponse, errorResponse, supabase, withErrorHandler } from './_lib/all.ts'
 
-export default async function handler(req: Request): Promise<Response> {
+export default withErrorHandler(async function handler(req: Request): Promise<Response> {
   if (req.method !== 'GET') return errorResponse('Method not allowed', 405)
 
   const auth = await verifyApiKey(req)
@@ -18,4 +18,4 @@ export default async function handler(req: Request): Promise<Response> {
   const email = user?.user?.email || ''
 
   return jsonResponse({ id: profile.id, name: profile.name, role: profile.role, email })
-}
+})

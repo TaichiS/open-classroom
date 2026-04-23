@@ -1,6 +1,6 @@
-import { verifySessionJwt, jsonResponse, errorResponse, supabase } from '../_lib/all.ts'
+import { verifySessionJwt, jsonResponse, errorResponse, supabase, withErrorHandler } from '../_lib/all.ts'
 
-export default async function handler(req: Request): Promise<Response> {
+export default withErrorHandler(async function handler(req: Request): Promise<Response> {
   if (req.method !== 'DELETE') return errorResponse('Method not allowed', 405)
 
   // 使用 Supabase session JWT（非 API Key）
@@ -20,4 +20,4 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (error) return errorResponse(error.message, 500)
   return jsonResponse({ deleted: true })
-}
+})

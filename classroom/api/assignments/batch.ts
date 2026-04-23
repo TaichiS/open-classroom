@@ -1,4 +1,4 @@
-import { verifyApiKey, jsonResponse, errorResponse, supabase } from '../_lib/index.js'
+import { verifyApiKey, jsonResponse, errorResponse, supabase, withErrorHandler } from '../_lib/index.js'
 
 interface AssignmentInput {
   title: string
@@ -10,7 +10,7 @@ interface AssignmentInput {
   isActive?: boolean
 }
 
-export default async function handler(req: Request): Promise<Response> {
+export default withErrorHandler(async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return errorResponse('Method not allowed', 405)
 
   const auth = await verifyApiKey(req)
@@ -54,4 +54,4 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   return jsonResponse({ created, errors }, 201)
-}
+})
