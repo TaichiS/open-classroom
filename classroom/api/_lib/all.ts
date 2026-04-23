@@ -1,6 +1,4 @@
 // 統一 API 依賴檔案 - 將所有必要的函數和變數合併到此檔案
-
-import { createHash } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 
 // ==================== 認證相關 ====================
@@ -10,9 +8,15 @@ export interface AuthResult {
   role: string
 }
 
-// 環境變數配置（如果沒有設置，使用默認值）
-const supabaseUrl = process.env.SUPABASE_URL || 'https://kzcmxwqklzrrmixjgesq.supabase.co'
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6Y2RydXBlcm1peGpnZXNxIiwicm9sZSI6Im5udWkiLCJwYXQiOjE3NzU3NTUsImV4cCI6MjA1MzY1NX0.s3zN26bOyF6fzsxLUg0ReiBZEIQRH2VojeI1nztqM28'
+// Web Crypto API SHA-256（Edge Runtime 相容）
+async function sha256Hex(text: string): Promise<string> {
+  const data = new TextEncoder().encode(text)
+  const buffer = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+const supabaseUrl = process.env.SUPABASE_URL!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { autoRefreshToken: false, persistSession: false }
@@ -25,7 +29,7 @@ export async function verifyApiKey(req: Request): Promise<AuthResult | null> {
   const key = authHeader.slice(7).trim()
   if (!key.startsWith('cl_teacher_') && !key.startsWith('cl_student_')) return null
 
-  const keyHash = createHash('sha256').update(key).digest('hex')
+  const keyHash = await sha256Hex(key)
 
   const { data, error } = await supabase
     .from('api_keys')
@@ -35,7 +39,6 @@ export async function verifyApiKey(req: Request): Promise<AuthResult | null> {
 
   if (error || !data) return null
 
-  // 更新最後使用時間（非同步，不等待）
   supabase
     .from('api_keys')
     .update({ last_used_at: new Date().toISOString() })

@@ -1,4 +1,6 @@
-import { verifyApiKey, jsonResponse, errorResponse, supabase, withErrorHandler } from '../_lib/index.js'
+export const config = { runtime: 'edge' }
+
+import { verifyApiKey, jsonResponse, errorResponse, supabase, withErrorHandler } from '../_lib/all'
 
 interface AssignmentInput {
   title: string

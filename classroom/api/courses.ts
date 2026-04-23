@@ -1,4 +1,6 @@
-import { verifyApiKey, jsonResponse, errorResponse, supabase, withErrorHandler } from './_lib/all.ts'
+export const config = { runtime: 'edge' }
+
+import { verifyApiKey, jsonResponse, errorResponse, supabase, withErrorHandler } from './_lib/all'
 
 export default withErrorHandler(async function handler(req: Request): Promise<Response> {
   if (req.method !== 'GET') return errorResponse('Method not allowed', 405)

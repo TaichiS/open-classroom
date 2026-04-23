@@ -1,4 +1,6 @@
-import { verifySessionJwt, jsonResponse, errorResponse, supabase, withErrorHandler } from '../_lib/all.ts'
+export const config = { runtime: 'edge' }
+
+import { verifySessionJwt, jsonResponse, errorResponse, supabase, withErrorHandler } from '../_lib/all'
 
 export default withErrorHandler(async function handler(req: Request): Promise<Response> {
   if (req.method !== 'DELETE') return errorResponse('Method not allowed', 405)

@@ -1,9 +1,15 @@
-import { createHash } from 'crypto'
 import { supabase } from './supabase'
 
 export interface AuthResult {
   userId: string
   role: string
+}
+
+// Web Crypto API SHA-256（Edge Runtime 相容）
+async function sha256Hex(text: string): Promise<string> {
+  const data = new TextEncoder().encode(text)
+  const buffer = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
 export async function verifyApiKey(req: Request): Promise<AuthResult | null> {
@@ -13,7 +19,7 @@ export async function verifyApiKey(req: Request): Promise<AuthResult | null> {
   const key = authHeader.slice(7).trim()
   if (!key.startsWith('cl_teacher_') && !key.startsWith('cl_student_')) return null
 
-  const keyHash = createHash('sha256').update(key).digest('hex')
+  const keyHash = await sha256Hex(key)
 
   const { data, error } = await supabase
     .from('api_keys')
@@ -23,7 +29,6 @@ export async function verifyApiKey(req: Request): Promise<AuthResult | null> {
 
   if (error || !data) return null
 
-  // 更新最後使用時間（非同步，不等待）
   supabase
     .from('api_keys')
     .update({ last_used_at: new Date().toISOString() })

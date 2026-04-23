@@ -1,10 +1,10 @@
-import { createHash, randomBytes } from 'crypto'
-import { verifySessionJwt, jsonResponse, errorResponse, supabase, withErrorHandler } from '../_lib/all.ts'
+export const config = { runtime: 'edge' }
+
+import { verifySessionJwt, jsonResponse, errorResponse, supabase, withErrorHandler } from '../_lib/all'
 
 export default withErrorHandler(async function handler(req: Request): Promise<Response> {
   if (req.method !== 'POST') return errorResponse('Method not allowed', 405)
 
-  // 使用 Supabase session JWT（非 API Key）
   const auth = await verifySessionJwt(req)
   if (!auth) return errorResponse('Unauthorized', 401)
 
@@ -12,27 +12,28 @@ export default withErrorHandler(async function handler(req: Request): Promise<Re
   const { label } = body
   if (!label || typeof label !== 'string') return errorResponse('label is required', 400)
 
-  // 產生明文 key
+  // Web Crypto API 產生 random bytes
+  const bytes = new Uint8Array(24)
+  crypto.getRandomValues(bytes)
+  const randomPart = btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '').slice(0, 32)
+
   const prefix = auth.role === 'teacher' ? 'cl_teacher_' : 'cl_student_'
-  const randomPart = randomBytes(24).toString('base64url').slice(0, 32)
   const plainKey = `${prefix}${randomPart}`
 
-  // SHA-256 hash（不儲存明文）
-  const keyHash = createHash('sha256').update(plainKey).digest('hex')
+  // Web Crypto API SHA-256
+  const data = new TextEncoder().encode(plainKey)
+  const buffer = await crypto.subtle.digest('SHA-256', data)
+  const keyHash = Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('')
 
-  const { data, error } = await supabase
+  const { data: row, error } = await supabase
     .from('api_keys')
-    .insert({
-      user_id: auth.userId,
-      key_hash: keyHash,
-      label,
-      role: auth.role,
-    })
+    .insert({ user_id: auth.userId, key_hash: keyHash, label, role: auth.role })
     .select('id, label, role, created_at')
     .single()
 
   if (error) return errorResponse(error.message, 500)
 
   // 明文 key 只在此回傳一次
-  return jsonResponse({ ...data, key: plainKey }, 201)
+  return jsonResponse({ ...row, key: plainKey }, 201)
 })
