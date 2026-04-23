@@ -1,3 +1,5 @@
+export const config = { runtime: 'edge' }
+
 // 診斷 endpoint：捕捉模組初始化錯誤
 let supabaseClient: any = null
 let initError: string | null = null
