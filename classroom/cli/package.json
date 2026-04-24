@@ -1,0 +1,15 @@
+{
+  "name": "classroom-cli",
+  "version": "1.0.0",
+  "description": "作業管理系統 CLI 工具",
+  "type": "module",
+  "bin": {
+    "classroom": "./index.js"
+  },
+  "dependencies": {
+    "commander": "^12.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
