@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Textarea } from '@/components/ui/Textarea'
+import MarkdownEditor from '@/components/ui/MarkdownEditor.vue'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Label } from '@/components/ui/Label'
@@ -284,7 +284,7 @@ function handleLogout() {
     </main>
 
     <!-- Create Assignment Dialog -->
-    <Dialog v-model:open="isCreateDialogOpen">
+    <Dialog v-model:open="isCreateDialogOpen" class="max-w-5xl max-h-[90vh] overflow-y-auto">
       <div class="space-y-4">
         <DialogHeader>
           <DialogTitle>新增作業</DialogTitle>
@@ -299,12 +299,11 @@ function handleLogout() {
             />
           </div>
           <div class="space-y-2">
-            <Label for="description">作業描述</Label>
-            <Textarea
-              id="description"
+            <Label>作業描述</Label>
+            <MarkdownEditor
               v-model="newAssignment.description"
-              placeholder="輸入作業描述"
-              :rows="3"
+              placeholder="支援 Markdown 格式，例如 **粗體**、`程式碼`、清單等"
+              minHeight="320px"
             />
           </div>
           <div class="space-y-2">
