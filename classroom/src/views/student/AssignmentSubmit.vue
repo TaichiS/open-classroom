@@ -189,7 +189,7 @@ async function handleSubmit() {
 
       <!-- Submit Card -->
       <Card>
-        <CardContent class="p-6 space-y-4">
+        <CardContent class="!p-6 space-y-4">
           <h2 class="font-semibold text-slate-900">提交作業</h2>
 
           <!-- Already completed -->
