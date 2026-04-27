@@ -26,6 +26,7 @@ const router = createRouter({
     { path: '/teacher', name: 'TeacherDashboard', component: TeacherDashboard, meta: { requiresAuth: true, role: 'teacher' } },
     { path: '/teacher/course/:id', name: 'TeacherCourseDetail', component: TeacherCourseDetail, meta: { requiresAuth: true, role: 'teacher' } },
     { path: '/teacher/submissions/:id', name: 'AssignmentSubmissions', component: AssignmentSubmissions, meta: { requiresAuth: true, role: 'teacher' } },
+    { path: '/teacher/discussion/:id', name: 'TeacherDiscussion', component: Discussion, meta: { requiresAuth: true, role: 'teacher' } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })

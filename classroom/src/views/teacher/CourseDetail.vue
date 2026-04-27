@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import MarkdownEditor from '@/components/ui/MarkdownEditor.vue'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
+import { Card, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Label } from '@/components/ui/Label'
 import {
@@ -20,6 +20,7 @@ import {
   Plus,
   Users,
   Clock,
+  CalendarDays,
   MousePointerClick,
   FileText,
   Link as LinkIcon,
@@ -27,6 +28,8 @@ import {
   Loader2,
   Trash2,
   Eye,
+  Pencil,
+  MessageSquare,
 } from 'lucide-vue-next'
 import {
   findCourseById,
@@ -34,6 +37,7 @@ import {
   getMembersByCourse,
   findProfileById,
   saveAssignment,
+  updateAssignment,
   deleteAssignment,
 } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
@@ -49,6 +53,20 @@ const members = ref<CourseMember[]>([])
 const memberNameMap = ref<Record<string, string>>({})
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
+
+// Edit state
+const isEditDialogOpen = ref(false)
+const editingAssignment = ref<Assignment | null>(null)
+const isEditing = ref(false)
+const editForm = ref({
+  title: '',
+  description: '',
+  submitType: 'complete' as SubmitType,
+  releaseDate: '',
+  dueDate: '',
+  showcaseEnabled: true,
+  showcaseRequireApproval: true,
+})
 
 const newAssignment = ref({
   title: '',
@@ -99,6 +117,31 @@ function getStudentName(studentId: string): string {
   return memberNameMap.value[studentId] ?? '未知學生'
 }
 
+function stripMarkdown(text: string, maxLines = 5): string {
+  return text
+    .replace(/#{1,6}\s+/g, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/`(.+?)`/g, '$1')
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+    .replace(/^[-*+>]\s+/gm, '')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0)
+    .slice(0, maxLines)
+    .join('\n')
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+function toLocalDatetimeInput(iso: string): string {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 async function handleCreateAssignment() {
   if (!newAssignment.value.title.trim() || !course.value) return
 
@@ -146,6 +189,48 @@ async function handleCreateAssignment() {
     console.error('Failed to create assignment:', e)
   } finally {
     isCreating.value = false
+  }
+}
+
+function openEditDialog(assignment: Assignment) {
+  editingAssignment.value = assignment
+  editForm.value = {
+    title: assignment.title,
+    description: assignment.description,
+    submitType: assignment.submitType,
+    releaseDate: toLocalDatetimeInput(assignment.releaseDate),
+    dueDate: assignment.dueDate ? toLocalDatetimeInput(assignment.dueDate) : '',
+    showcaseEnabled: assignment.showcaseEnabled,
+    showcaseRequireApproval: assignment.showcaseRequireApproval,
+  }
+  isEditDialogOpen.value = true
+}
+
+async function handleEditAssignment() {
+  if (!editForm.value.title.trim() || !editingAssignment.value) return
+
+  isEditing.value = true
+  try {
+    await updateAssignment(editingAssignment.value.id, {
+      title: editForm.value.title.trim(),
+      description: editForm.value.description.trim(),
+      submitType: editForm.value.submitType,
+      releaseDate: editForm.value.releaseDate
+        ? new Date(editForm.value.releaseDate).toISOString()
+        : editingAssignment.value.releaseDate,
+      dueDate: editForm.value.dueDate
+        ? new Date(editForm.value.dueDate).toISOString()
+        : undefined,
+      showcaseEnabled: editForm.value.showcaseEnabled,
+      showcaseRequireApproval: editForm.value.showcaseRequireApproval,
+    })
+    isEditDialogOpen.value = false
+    editingAssignment.value = null
+    await loadData()
+  } catch (e) {
+    console.error('Failed to update assignment:', e)
+  } finally {
+    isEditing.value = false
   }
 }
 
@@ -200,12 +285,10 @@ function handleLogout() {
 
       <!-- Students List -->
       <Card class="mb-8">
-        <CardHeader>
-          <CardTitle class="text-lg">學生名單</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div v-if="members.length === 0" class="text-center py-4 text-slate-500">
-            <p>尚無學生加入此課程</p>
+        <CardContent class="p-6">
+          <h2 class="text-base font-semibold text-slate-900 mb-4">學生名單</h2>
+          <div v-if="members.length === 0" class="text-center py-4 text-slate-500 text-sm">
+            尚無學生加入此課程
           </div>
           <div v-else class="flex flex-wrap gap-2">
             <Badge
@@ -221,61 +304,89 @@ function handleLogout() {
 
       <!-- Assignments -->
       <div class="space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-xl font-semibold">課程作業</h2>
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-xl font-semibold text-slate-900">課程作業</h2>
           <Button @click="isCreateDialogOpen = true">
             <Plus class="h-4 w-4 mr-2" />
             新增作業
           </Button>
         </div>
 
-        <div v-if="assignments.length === 0" class="text-center py-12 text-slate-500">
-          <p>此課程暫無作業</p>
-          <p class="text-sm">點擊上方按鈕新增作業！</p>
+        <div v-if="assignments.length === 0" class="text-center py-16 text-slate-500">
+          <BookOpen class="h-10 w-10 mx-auto mb-3 text-slate-300" />
+          <p class="font-medium">此課程暫無作業</p>
+          <p class="text-sm mt-1">點擊上方按鈕新增作業</p>
         </div>
-        <div v-else class="space-y-4">
+
+        <div v-else class="space-y-3">
           <Card
             v-for="assignment in assignments"
             :key="assignment.id"
+            class="hover:shadow-md transition-shadow duration-200"
           >
-            <CardContent class="p-6">
-              <div class="flex items-start justify-between">
-                <div>
-                  <div class="flex items-center gap-2 mb-1">
-                    <h3 class="font-semibold">{{ assignment.title }}</h3>
-                    <Badge variant="outline">
-                      <component :is="submitTypes.find(t => t.value === assignment.submitType)?.icon" class="h-3 w-3 mr-1" />
-                      {{ submitTypes.find(t => t.value === assignment.submitType)?.label }}
-                    </Badge>
-                  </div>
-                  <p class="text-sm text-slate-600 mb-2">{{ assignment.description }}</p>
-                  <div class="flex items-center gap-4 text-sm text-slate-500">
-                    <span class="flex items-center gap-1">
-                      <Clock class="h-4 w-4" />
-                      發布：{{ new Date(assignment.releaseDate).toLocaleDateString('zh-TW') }}
-                    </span>
-                    <span v-if="assignment.dueDate" class="flex items-center gap-1">
-                      <Clock class="h-4 w-4" />
-                      截止：{{ new Date(assignment.dueDate).toLocaleDateString('zh-TW') }}
-                    </span>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <router-link :to="`/teacher/submissions/${assignment.id}`">
-                    <Button variant="outline" size="sm">
-                      <Eye class="h-4 w-4 mr-1" />
-                      查看提交
-                    </Button>
-                  </router-link>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    class="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    @click="handleDeleteAssignment(assignment.id)"
-                  >
-                    <Trash2 class="h-4 w-4" />
+            <CardContent class="p-5 lg:p-6">
+              <!-- Title row -->
+              <div class="flex flex-wrap items-center gap-2 mb-3">
+                <h3 class="font-semibold text-slate-900 text-base leading-snug">
+                  {{ assignment.title }}
+                </h3>
+                <Badge variant="outline" class="shrink-0">
+                  <component
+                    :is="submitTypes.find(t => t.value === assignment.submitType)?.icon"
+                    class="h-3 w-3 mr-1"
+                  />
+                  {{ submitTypes.find(t => t.value === assignment.submitType)?.label }}
+                </Badge>
+              </div>
+
+              <!-- Description preview -->
+              <p
+                v-if="assignment.description"
+                class="text-sm text-slate-600 leading-relaxed whitespace-pre-line mb-4"
+              >{{ stripMarkdown(assignment.description) }}</p>
+
+              <!-- Dates -->
+              <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500 mb-4">
+                <span class="flex items-center gap-1">
+                  <CalendarDays class="h-3.5 w-3.5" />
+                  發布：{{ formatDate(assignment.releaseDate) }}
+                </span>
+                <span v-if="assignment.dueDate" class="flex items-center gap-1">
+                  <Clock class="h-3.5 w-3.5" />
+                  截止：{{ formatDate(assignment.dueDate) }}
+                </span>
+              </div>
+
+              <!-- Actions -->
+              <div class="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+                <router-link :to="`/teacher/discussion/${assignment.id}`">
+                  <Button variant="ghost" size="sm" class="cursor-pointer">
+                    <MessageSquare class="h-4 w-4 mr-1.5" />
+                    討論區
                   </Button>
-                </div>
+                </router-link>
+                <router-link :to="`/teacher/submissions/${assignment.id}`">
+                  <Button variant="outline" size="sm" class="cursor-pointer">
+                    <Eye class="h-4 w-4 mr-1.5" />
+                    查看提交
+                  </Button>
+                </router-link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="cursor-pointer"
+                  @click="openEditDialog(assignment)"
+                >
+                  <Pencil class="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                  @click="handleDeleteAssignment(assignment.id)"
+                >
+                  <Trash2 class="h-4 w-4" />
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -314,7 +425,7 @@ function handleLogout() {
                 :key="type.value"
                 type="button"
                 :class="[
-                  'flex items-center gap-2 p-3 rounded-lg border transition-colors',
+                  'flex items-center gap-2 p-3 rounded-lg border transition-colors cursor-pointer',
                   newAssignment.submitType === type.value
                     ? 'border-slate-900 bg-slate-50'
                     : 'border-slate-200 hover:bg-slate-50'
@@ -363,15 +474,106 @@ function handleLogout() {
             </Label>
           </div>
           <div class="flex justify-end gap-2">
-            <Button variant="outline" @click="isCreateDialogOpen = false">
-              取消
-            </Button>
+            <Button variant="outline" @click="isCreateDialogOpen = false">取消</Button>
             <Button
               :disabled="!newAssignment.title.trim() || isCreating"
               @click="handleCreateAssignment"
             >
               <Loader2 v-if="isCreating" class="mr-2 h-4 w-4 animate-spin" />
               {{ isCreating ? '建立中...' : '建立' }}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Dialog>
+
+    <!-- Edit Assignment Dialog -->
+    <Dialog v-model:open="isEditDialogOpen" class="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <div class="space-y-4">
+        <DialogHeader>
+          <DialogTitle>編輯作業</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="space-y-2">
+            <Label for="edit-title">作業標題</Label>
+            <Input
+              id="edit-title"
+              v-model="editForm.title"
+              placeholder="輸入作業標題"
+            />
+          </div>
+          <div class="space-y-2">
+            <Label>作業描述</Label>
+            <MarkdownEditor
+              v-model="editForm.description"
+              placeholder="支援 Markdown 格式，例如 **粗體**、`程式碼`、清單等"
+              minHeight="320px"
+            />
+          </div>
+          <div class="space-y-2">
+            <Label>提交方式</Label>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                v-for="type in submitTypes"
+                :key="type.value"
+                type="button"
+                :class="[
+                  'flex items-center gap-2 p-3 rounded-lg border transition-colors cursor-pointer',
+                  editForm.submitType === type.value
+                    ? 'border-slate-900 bg-slate-50'
+                    : 'border-slate-200 hover:bg-slate-50'
+                ]"
+                @click="editForm.submitType = type.value"
+              >
+                <component :is="type.icon" class="h-4 w-4" />
+                <span class="text-sm">{{ type.label }}</span>
+              </button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <Label for="edit-releaseDate">發布時間</Label>
+              <Input
+                id="edit-releaseDate"
+                v-model="editForm.releaseDate"
+                type="datetime-local"
+              />
+            </div>
+            <div class="space-y-2">
+              <Label for="edit-dueDate">截止時間（選填）</Label>
+              <Input
+                id="edit-dueDate"
+                v-model="editForm.dueDate"
+                type="datetime-local"
+              />
+            </div>
+          </div>
+          <div class="space-y-2">
+            <Label class="flex items-center gap-2">
+              <input
+                v-model="editForm.showcaseEnabled"
+                type="checkbox"
+                class="w-4 h-4"
+              />
+              啟用作業展示
+            </Label>
+            <Label v-if="editForm.showcaseEnabled" class="flex items-center gap-2 ml-6">
+              <input
+                v-model="editForm.showcaseRequireApproval"
+                type="checkbox"
+                class="w-4 h-4"
+              />
+              需要老師審核
+            </Label>
+          </div>
+          <div class="flex justify-end gap-2">
+            <Button variant="outline" @click="isEditDialogOpen = false">取消</Button>
+            <Button
+              :disabled="!editForm.title.trim() || isEditing"
+              @click="handleEditAssignment"
+            >
+              <Loader2 v-if="isEditing" class="mr-2 h-4 w-4 animate-spin" />
+              {{ isEditing ? '儲存中...' : '儲存變更' }}
             </Button>
           </div>
         </div>
