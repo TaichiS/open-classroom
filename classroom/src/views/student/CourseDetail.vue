@@ -10,14 +10,15 @@ import {
   BookOpen,
   LogOut,
   Lock,
-  Unlock,
-  CheckCircle,
+  CheckCircle2,
   Clock,
+  CalendarDays,
   MessageCircle,
   FileText,
   Link as LinkIcon,
   Image as ImageIcon,
   MousePointerClick,
+  ChevronRight,
 } from 'lucide-vue-next'
 import {
   findCourseById,
@@ -97,6 +98,25 @@ function getAssignmentStatusBadge(assignment: AssignmentWithStatus) {
   return { variant: 'default' as const, text: '進行中' }
 }
 
+function stripMarkdown(text: string, maxLines = 5): string {
+  return text
+    .replace(/#{1,6}\s+/g, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/`(.+?)`/g, '$1')
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+    .replace(/^[-*+>]\s+/gm, '')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0)
+    .slice(0, maxLines)
+    .join('\n')
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
 function handleLogout() {
   authStore.logout()
   router.push('/login')
@@ -127,69 +147,90 @@ function handleLogout() {
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="mb-6">
+      <div class="mb-8">
         <p class="text-slate-600">{{ course.description }}</p>
       </div>
 
       <div class="space-y-4">
-        <h2 class="text-xl font-semibold">課程作業</h2>
-        <div v-if="assignments.length === 0" class="text-center py-12 text-slate-500">
-          <p>此課程暫無作業</p>
+        <h2 class="text-xl font-semibold text-slate-900 mb-2">課程作業</h2>
+
+        <div v-if="assignments.length === 0" class="text-center py-16 text-slate-500">
+          <BookOpen class="h-10 w-10 mx-auto mb-3 text-slate-300" />
+          <p class="font-medium">此課程暫無作業</p>
         </div>
-        <div v-else class="space-y-4">
+
+        <div v-else class="space-y-3">
           <Card
             v-for="assignment in assignments"
             :key="assignment.id"
-            :class="`transition-all ${assignment.isUnlocked ? 'cursor-pointer hover:shadow-md' : 'opacity-75'}`"
+            :class="`transition-shadow duration-200 ${assignment.isUnlocked ? 'cursor-pointer hover:shadow-md' : 'opacity-60'}`"
             @click="assignment.isUnlocked && router.push(`/assignment/${assignment.id}`)"
           >
-            <CardContent class="p-6">
-              <div class="flex items-start justify-between">
-                <div class="flex items-start gap-4">
-                  <div class="mt-1">
-                    <Unlock v-if="assignment.isUnlocked" class="h-5 w-5 text-green-600" />
-                    <Lock v-else class="h-5 w-5 text-slate-400" />
-                  </div>
-                  <div>
-                    <div class="flex items-center gap-2 mb-1">
-                      <h3 class="font-semibold">{{ assignment.title }}</h3>
-                      <Badge :variant="getAssignmentStatusBadge(assignment).variant">
-                        {{ getAssignmentStatusBadge(assignment).text }}
-                      </Badge>
-                    </div>
-                    <p class="text-sm text-slate-600 mb-2">{{ assignment.description }}</p>
-                    <div class="flex items-center gap-4 text-sm text-slate-500">
-                      <span class="flex items-center gap-1">
-                        <component :is="submitTypeIcons[assignment.submitType]" class="h-4 w-4" />
-                        {{ submitTypeLabels[assignment.submitType] }}
-                      </span>
-                      <span v-if="assignment.dueDate" class="flex items-center gap-1">
-                        <Clock class="h-4 w-4" />
-                        截止：{{ new Date(assignment.dueDate).toLocaleDateString('zh-TW') }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <router-link
-                    v-if="assignment.isUnlocked"
-                    :to="`/discussion/${assignment.id}`"
-                    @click.stop
-                  >
-                    <Button variant="ghost" size="sm">
-                      <MessageCircle class="h-4 w-4 mr-1" />
-                      討論區
-                    </Button>
-                  </router-link>
-                  <Button v-else variant="ghost" size="sm" disabled>
-                    <MessageCircle class="h-4 w-4 mr-1" />
-                    討論區
-                  </Button>
-                  <CheckCircle
+            <CardContent class="p-5 lg:p-6">
+              <!-- Title row -->
+              <div class="flex items-start gap-3 mb-3">
+                <!-- Lock / Complete icon -->
+                <div class="mt-0.5 shrink-0">
+                  <CheckCircle2
                     v-if="assignment.submission?.status === 'completed'"
                     class="h-5 w-5 text-green-600"
                   />
+                  <Lock v-else-if="!assignment.isUnlocked" class="h-5 w-5 text-slate-400" />
+                  <div v-else class="h-5 w-5 rounded-full border-2 border-slate-300" />
                 </div>
+
+                <div class="flex-1 min-w-0">
+                  <div class="flex flex-wrap items-center gap-2 mb-1">
+                    <h3 class="font-semibold text-slate-900 text-base leading-snug">
+                      {{ assignment.title }}
+                    </h3>
+                    <Badge :variant="getAssignmentStatusBadge(assignment).variant" class="shrink-0">
+                      {{ getAssignmentStatusBadge(assignment).text }}
+                    </Badge>
+                  </div>
+
+                  <!-- Description preview -->
+                  <p
+                    v-if="assignment.description && assignment.isUnlocked"
+                    class="text-sm text-slate-600 leading-relaxed whitespace-pre-line"
+                  >{{ stripMarkdown(assignment.description) }}</p>
+                  <p v-else-if="!assignment.isUnlocked" class="text-sm text-slate-400">
+                    完成前一個作業後解鎖
+                  </p>
+                </div>
+
+                <!-- Chevron for unlocked -->
+                <ChevronRight v-if="assignment.isUnlocked" class="h-5 w-5 text-slate-400 shrink-0 mt-0.5" />
+              </div>
+
+              <!-- Meta + actions (only when unlocked) -->
+              <div
+                v-if="assignment.isUnlocked"
+                class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 mt-4"
+              >
+                <!-- Dates + submit type -->
+                <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+                  <span class="flex items-center gap-1">
+                    <component :is="submitTypeIcons[assignment.submitType]" class="h-3.5 w-3.5" />
+                    {{ submitTypeLabels[assignment.submitType] }}
+                  </span>
+                  <span class="flex items-center gap-1">
+                    <CalendarDays class="h-3.5 w-3.5" />
+                    發布：{{ formatDate(assignment.releaseDate) }}
+                  </span>
+                  <span v-if="assignment.dueDate" class="flex items-center gap-1">
+                    <Clock class="h-3.5 w-3.5" />
+                    截止：{{ formatDate(assignment.dueDate) }}
+                  </span>
+                </div>
+
+                <!-- Discussion button -->
+                <router-link :to="`/discussion/${assignment.id}`" @click.stop>
+                  <Button variant="ghost" size="sm" class="cursor-pointer">
+                    <MessageCircle class="h-4 w-4 mr-1.5" />
+                    討論區
+                  </Button>
+                </router-link>
               </div>
             </CardContent>
           </Card>
