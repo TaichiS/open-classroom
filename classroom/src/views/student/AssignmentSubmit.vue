@@ -160,12 +160,11 @@ async function handleSubmit() {
       <!-- Assignment Description Card -->
       <Card>
         <CardContent class="!p-6">
-          <!-- Submit type badge + title -->
-          <div class="flex items-center gap-2 mb-1 text-sm text-slate-500">
+          <!-- Submit type badge -->
+          <div class="flex items-center gap-2 mb-4 text-sm text-slate-500">
             <component :is="submitTypeIcons[assignment.submitType]" class="h-4 w-4" />
             <span>{{ submitTypeLabels[assignment.submitType] }}</span>
           </div>
-          <h1 class="text-xl font-bold text-slate-900 mb-4">{{ assignment.title }}</h1>
 
           <!-- Markdown rendered description -->
           <MarkdownRenderer
