@@ -4,15 +4,18 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
+import { Card, CardContent } from '@/components/ui/Card'
+import MarkdownRenderer from '@/components/ui/MarkdownRenderer.vue'
 import {
   ArrowLeft,
-  CheckCircle,
+  CheckCircle2,
   FileText,
   Link as LinkIcon,
   Image as ImageIcon,
   MousePointerClick,
   Loader2,
+  CalendarDays,
+  Clock,
 } from 'lucide-vue-next'
 import {
   findAssignmentById,
@@ -52,9 +55,9 @@ const submitTypeLabels: Record<SubmitType, string> = {
   image: '圖片上傳',
 }
 
-const submitTypeDescriptions: Record<SubmitType, string> = {
-  complete: '點擊下方按鈕即可完成此作業',
-  file: '請輸入檔案連結或描述',
+const submitInputPlaceholders: Record<SubmitType, string> = {
+  complete: '',
+  file: '請輸入檔案描述或連結',
   link: '請輸入作業連結',
   image: '請輸入圖片連結',
 }
@@ -88,6 +91,10 @@ async function loadData() {
       submitData.value = existingSubmission.submitData
     }
   }
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
 async function handleSubmit() {
@@ -148,21 +155,47 @@ async function handleSubmit() {
     </header>
 
     <!-- Main Content -->
-    <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
+
+      <!-- Assignment Description Card -->
       <Card>
-        <CardHeader>
-          <div class="flex items-center gap-2 mb-2">
-            <component :is="submitTypeIcons[assignment.submitType]" class="h-5 w-5 text-slate-600" />
-            <span class="text-sm text-slate-600">{{ submitTypeLabels[assignment.submitType] }}</span>
+        <CardContent class="p-6">
+          <!-- Submit type badge + title -->
+          <div class="flex items-center gap-2 mb-1 text-sm text-slate-500">
+            <component :is="submitTypeIcons[assignment.submitType]" class="h-4 w-4" />
+            <span>{{ submitTypeLabels[assignment.submitType] }}</span>
           </div>
-          <CardTitle>{{ assignment.title }}</CardTitle>
-          <CardDescription>{{ assignment.description }}</CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-6">
-          <!-- Submission Status -->
+          <h1 class="text-xl font-bold text-slate-900 mb-4">{{ assignment.title }}</h1>
+
+          <!-- Markdown rendered description -->
+          <MarkdownRenderer
+            v-if="assignment.description"
+            :content="assignment.description"
+          />
+
+          <!-- Dates -->
+          <div class="flex flex-wrap gap-4 text-xs text-slate-500 mt-5 pt-4 border-t border-slate-100">
+            <span class="flex items-center gap-1">
+              <CalendarDays class="h-3.5 w-3.5" />
+              發布：{{ formatDate(assignment.releaseDate) }}
+            </span>
+            <span v-if="assignment.dueDate" class="flex items-center gap-1">
+              <Clock class="h-3.5 w-3.5" />
+              截止：{{ formatDate(assignment.dueDate) }}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <!-- Submit Card -->
+      <Card>
+        <CardContent class="p-6 space-y-4">
+          <h2 class="font-semibold text-slate-900">提交作業</h2>
+
+          <!-- Already completed -->
           <div v-if="submission?.status === 'completed'" class="p-4 bg-green-50 border border-green-200 rounded-lg">
             <div class="flex items-center gap-2 text-green-700">
-              <CheckCircle class="h-5 w-5" />
+              <CheckCircle2 class="h-5 w-5" />
               <span class="font-medium">作業已完成</span>
             </div>
             <p v-if="submission.submittedAt" class="text-sm text-green-600 mt-1">
@@ -170,43 +203,40 @@ async function handleSubmit() {
             </p>
           </div>
 
-          <!-- Submit Form -->
-          <div class="space-y-4">
-            <p class="text-sm text-slate-600">{{ submitTypeDescriptions[assignment.submitType] }}</p>
-
-            <div v-if="assignment.submitType !== 'complete'">
-              <Input
-                v-model="submitData"
-                :placeholder="
-                  assignment.submitType === 'link'
-                    ? '請輸入連結'
-                    : assignment.submitType === 'file'
-                    ? '請輸入檔案描述或連結'
-                    : '請輸入圖片連結'
-                "
-              />
-            </div>
-
-            <div v-if="message" :class="[
-              'text-sm text-center p-2 rounded',
-              message.includes('成功') ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'
-            ]">
-              {{ message }}
-            </div>
-
-            <Button
-              class="w-full"
-              :disabled="isSubmitting || submission?.status === 'completed'"
-              @click="handleSubmit"
-            >
-              <Loader2 v-if="isSubmitting" class="mr-2 h-4 w-4 animate-spin" />
-              <CheckCircle v-else-if="submission?.status === 'completed'" class="mr-2 h-4 w-4" />
-              <component v-else :is="submitTypeIcons[assignment.submitType]" class="mr-2 h-4 w-4" />
-              {{ submission?.status === 'completed' ? '已完成' : isSubmitting ? '提交中...' : '提交作業' }}
-            </Button>
+          <!-- Input (non-complete types) -->
+          <div v-if="assignment.submitType !== 'complete'">
+            <Input
+              v-model="submitData"
+              :placeholder="submitInputPlaceholders[assignment.submitType]"
+              :disabled="submission?.status === 'completed'"
+            />
           </div>
+
+          <!-- Feedback message -->
+          <div
+            v-if="message"
+            :class="[
+              'text-sm text-center p-3 rounded-lg',
+              message.includes('成功') ? 'text-green-700 bg-green-50 border border-green-200' : 'text-red-700 bg-red-50 border border-red-200'
+            ]"
+          >
+            {{ message }}
+          </div>
+
+          <!-- Submit button -->
+          <Button
+            class="w-full"
+            :disabled="isSubmitting || submission?.status === 'completed'"
+            @click="handleSubmit"
+          >
+            <Loader2 v-if="isSubmitting" class="mr-2 h-4 w-4 animate-spin" />
+            <CheckCircle2 v-else-if="submission?.status === 'completed'" class="mr-2 h-4 w-4" />
+            <component v-else :is="submitTypeIcons[assignment.submitType]" class="mr-2 h-4 w-4" />
+            {{ submission?.status === 'completed' ? '已完成' : isSubmitting ? '提交中...' : '提交作業' }}
+          </Button>
         </CardContent>
       </Card>
+
     </main>
   </div>
 </template>
