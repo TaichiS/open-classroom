@@ -36,6 +36,11 @@ const newMessage = ref('')
 const replyTo = ref<DiscussionMessage | null>(null)
 
 const assignmentId = computed(() => route.params.id as string)
+const isTeacher = computed(() => authStore.profile?.role === 'teacher')
+const coursePath = computed(() => {
+  if (!course.value) return isTeacher.value ? '/teacher' : '/'
+  return isTeacher.value ? `/teacher/course/${course.value.id}` : `/course/${course.value.id}`
+})
 
 let channel: RealtimeChannel | null = null
 
@@ -52,24 +57,31 @@ async function loadData() {
 
   const assignmentData = await findAssignmentById(assignmentId.value)
   if (!assignmentData) {
-    router.push('/')
+    router.push(isTeacher.value ? '/teacher' : '/')
     return
   }
 
   const courseData = await findCourseById(assignmentData.courseId)
   if (!courseData) {
-    router.push('/')
+    router.push(isTeacher.value ? '/teacher' : '/')
     return
   }
 
-  // Check if student has unlocked this assignment
-  const member = await findMember(courseData.id, authStore.profile.id)
-  const assignments = await getAssignmentsByCourse(courseData.id)
-  const currentIndex = assignments.findIndex(a => a.id === assignmentData.id)
+  if (isTeacher.value) {
+    if (courseData.teacherId !== authStore.profile.id) {
+      router.push('/teacher')
+      return
+    }
+  } else {
+    // Check if student has unlocked this assignment
+    const member = await findMember(courseData.id, authStore.profile.id)
+    const assignments = await getAssignmentsByCourse(courseData.id)
+    const currentIndex = assignments.findIndex(a => a.id === assignmentData.id)
 
-  if (currentIndex === -1 || !member || currentIndex > member.currentAssignmentIndex) {
-    router.push(`/course/${courseData.id}`)
-    return
+    if (currentIndex === -1 || !member || currentIndex > member.currentAssignmentIndex) {
+      router.push(`/course/${courseData.id}`)
+      return
+    }
   }
 
   assignment.value = assignmentData
@@ -146,7 +158,7 @@ function formatDate(dateStr: string): string {
     <!-- Header -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
       <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">
-        <Button variant="ghost" size="sm" @click="router.push(`/course/${course.id}`)">
+        <Button variant="ghost" size="sm" @click="router.push(coursePath)">
           <ArrowLeft class="h-4 w-4 mr-2" />
           返回課程
         </Button>

@@ -117,6 +117,10 @@ function getStudentName(studentId: string): string {
   return memberNameMap.value[studentId] ?? '未知學生'
 }
 
+function getSubmitTypeInfo(submitType: SubmitType) {
+  return submitTypes.find(t => t.value === submitType)
+}
+
 function stripMarkdown(text: string, maxLines = 5): string {
   return text
     .replace(/#{1,6}\s+/g, '')
@@ -285,7 +289,7 @@ function handleLogout() {
 
       <!-- Students List -->
       <Card class="mb-8">
-        <CardContent class="p-6">
+        <CardContent class="!p-6">
           <h2 class="text-base font-semibold text-slate-900 mb-4">學生名單</h2>
           <div v-if="members.length === 0" class="text-center py-4 text-slate-500 text-sm">
             尚無學生加入此課程
@@ -330,12 +334,12 @@ function handleLogout() {
                 <h3 class="font-semibold text-slate-900 text-base leading-snug">
                   {{ assignment.title }}
                 </h3>
-                <Badge variant="outline" class="shrink-0">
+                <Badge v-if="assignment.submitType !== 'complete'" variant="outline" class="shrink-0">
                   <component
-                    :is="submitTypes.find(t => t.value === assignment.submitType)?.icon"
+                    :is="getSubmitTypeInfo(assignment.submitType)?.icon"
                     class="h-3 w-3 mr-1"
                   />
-                  {{ submitTypes.find(t => t.value === assignment.submitType)?.label }}
+                  {{ getSubmitTypeInfo(assignment.submitType)?.label }}
                 </Badge>
               </div>
 
