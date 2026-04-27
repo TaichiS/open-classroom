@@ -159,7 +159,7 @@ async function handleSubmit() {
 
       <!-- Assignment Description Card -->
       <Card>
-        <CardContent class="p-6">
+        <CardContent class="!p-6">
           <!-- Submit type badge + title -->
           <div class="flex items-center gap-2 mb-1 text-sm text-slate-500">
             <component :is="submitTypeIcons[assignment.submitType]" class="h-4 w-4" />

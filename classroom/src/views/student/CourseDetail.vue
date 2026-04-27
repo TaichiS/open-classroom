@@ -166,7 +166,7 @@ function handleLogout() {
             :class="`transition-shadow duration-200 ${assignment.isUnlocked ? 'cursor-pointer hover:shadow-md' : 'opacity-60'}`"
             @click="assignment.isUnlocked && router.push(`/assignment/${assignment.id}`)"
           >
-            <CardContent class="p-5 lg:p-6">
+            <CardContent class="!p-5 lg:!p-6">
               <!-- Title row -->
               <div class="flex items-start gap-3 mb-3">
                 <!-- Lock / Complete icon -->
