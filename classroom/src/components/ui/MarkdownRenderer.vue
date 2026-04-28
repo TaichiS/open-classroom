@@ -20,50 +20,51 @@ const renderedHtml = computed(() => {
 
 <style scoped>
 .md-render :deep(h1) {
-  font-size: 1.5rem;
+  font-size: 1.875rem;
   font-weight: 700;
-  color: #6366f1;
-  margin: 0.75rem 0 0.5rem;
-  line-height: 1.3;
+  color: #0f172a;
+  margin: 0 0 1rem;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
 }
 
 .md-render :deep(h2) {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 700;
-  color: #374151;
-  margin: 1rem 0 0.5rem;
-  padding-bottom: 0.25rem;
-  background: linear-gradient(90deg, #6366f1, transparent) bottom / 100% 2px no-repeat;
+  color: #0f172a;
+  margin: 2rem 0 0.75rem;
+  padding-left: 0.875rem;
+  border-left: 4px solid #38bdf8;
 }
 
 .md-render :deep(h3) {
   font-size: 1rem;
-  font-weight: 600;
-  color: #8b5cf6;
-  margin: 0.75rem 0 0.375rem;
+  font-weight: 700;
+  color: #334155;
+  margin: 1.5rem 0 0.5rem;
 }
 
 .md-render :deep(p) {
-  margin: 0.5rem 0;
-  color: #374151;
-  line-height: 1.7;
+  margin: 0.75rem 0;
+  color: #334155;
+  line-height: 1.85;
 }
 
 .md-render :deep(code:not(pre code)) {
-  background: #f0f0ff;
-  color: #e11d48;
+  background: #f1f5f9;
+  color: #be123c;
   padding: 0.1em 0.35em;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 0.875em;
   font-family: ui-monospace, monospace;
 }
 
 .md-render :deep(pre) {
-  background: #1e1e2e;
-  border-radius: 8px;
+  background: #0f172a;
+  border-radius: 14px;
   padding: 1rem;
   overflow-x: auto;
-  margin: 0.75rem 0;
+  margin: 1rem 0;
 }
 
 .md-render :deep(pre code) {
@@ -76,33 +77,33 @@ const renderedHtml = computed(() => {
 }
 
 .md-render :deep(blockquote) {
-  border-left: 4px solid #6366f1;
-  background: #fafaff;
-  padding: 0.5rem 1rem;
-  margin: 0.75rem 0;
-  border-radius: 0 6px 6px 0;
-  color: #4b5563;
+  border-left: 4px solid #38bdf8;
+  background: #f8fafc;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  border-radius: 0 12px 12px 0;
+  color: #475569;
 }
 
 .md-render :deep(ul) {
   padding-left: 1.5rem;
-  margin: 0.5rem 0;
+  margin: 0.75rem 0;
   list-style: none;
 }
 
 .md-render :deep(ul li) {
   position: relative;
   padding-left: 0.75rem;
-  margin: 0.25rem 0;
-  color: #374151;
-  line-height: 1.6;
+  margin: 0.4rem 0;
+  color: #334155;
+  line-height: 1.75;
 }
 
 .md-render :deep(ul li::before) {
   content: '•';
   position: absolute;
   left: -0.5rem;
-  color: #6366f1;
+  color: #0284c7;
   font-weight: 700;
 }
 
@@ -112,9 +113,9 @@ const renderedHtml = computed(() => {
 }
 
 .md-render :deep(ol li) {
-  margin: 0.25rem 0;
-  color: #374151;
-  line-height: 1.6;
+  margin: 0.4rem 0;
+  color: #334155;
+  line-height: 1.75;
 }
 
 .md-render :deep(table) {
@@ -125,27 +126,28 @@ const renderedHtml = computed(() => {
 }
 
 .md-render :deep(th) {
-  background: #f0f0ff;
-  color: #4b5563;
+  background: #f8fafc;
+  color: #334155;
   font-weight: 600;
   padding: 0.5rem 0.75rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e2e8f0;
   text-align: left;
 }
 
 .md-render :deep(td) {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #e5e7eb;
-  color: #374151;
+  border: 1px solid #e2e8f0;
+  color: #334155;
 }
 
 .md-render :deep(tr:nth-child(even) td) {
-  background: #f8f8ff;
+  background: #f8fafc;
 }
 
 .md-render :deep(a) {
-  color: #6366f1;
+  color: #0284c7;
   text-decoration: none;
+  font-weight: 600;
 }
 
 .md-render :deep(a:hover) {
@@ -154,12 +156,22 @@ const renderedHtml = computed(() => {
 
 .md-render :deep(strong) {
   font-weight: 700;
-  color: #6366f1;
+  color: #0f172a;
 }
 
 .md-render :deep(hr) {
   border: none;
-  border-top: 2px solid #e5e7eb;
-  margin: 1rem 0;
+  border-top: 1px solid #e2e8f0;
+  margin: 1.5rem 0;
+}
+
+@media (max-width: 640px) {
+  .md-render :deep(h1) {
+    font-size: 1.5rem;
+  }
+
+  .md-render :deep(h2) {
+    margin-top: 1.5rem;
+  }
 }
 </style>

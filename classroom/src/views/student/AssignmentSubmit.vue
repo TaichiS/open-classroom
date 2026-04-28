@@ -4,7 +4,6 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Card, CardContent } from '@/components/ui/Card'
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer.vue'
 import {
   ArrowLeft,
@@ -16,6 +15,7 @@ import {
   Loader2,
   CalendarDays,
   Clock,
+  BookOpen,
 } from 'lucide-vue-next'
 import {
   findAssignmentById,
@@ -40,6 +40,12 @@ const isSubmitting = ref(false)
 const message = ref('')
 
 const assignmentId = computed(() => route.params.id as string)
+const isCompleted = computed(() => submission.value?.status === 'completed')
+const submitActionLabel = computed(() => {
+  if (isCompleted.value) return '已完成'
+  if (isSubmitting.value) return '提交中...'
+  return assignment.value?.submitType === 'complete' ? '標記為完成' : '提交作業'
+})
 
 const submitTypeIcons: Record<SubmitType, any> = {
   complete: MousePointerClick,
@@ -143,99 +149,129 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div v-if="assignment && course" class="min-h-screen bg-slate-50">
+  <div v-if="assignment && course" class="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_48%,#f8fafc_100%)] text-slate-900">
     <!-- Header -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
-      <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">
-        <Button variant="ghost" size="sm" @click="router.push(`/course/${course.id}`)">
+    <header class="sticky top-0 z-10 border-b border-white/70 bg-white/80 backdrop-blur-xl">
+      <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <Button variant="ghost" size="sm" class="-ml-2 text-slate-600 hover:text-slate-950" @click="router.push(`/course/${course.id}`)">
           <ArrowLeft class="h-4 w-4 mr-2" />
           返回課程
         </Button>
+        <span class="hidden rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-500 sm:inline-flex">
+          {{ course.name }}
+        </span>
       </div>
     </header>
 
     <!-- Main Content -->
-    <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
-
-      <!-- Assignment Description Card -->
-      <Card>
-        <CardContent class="!p-6">
-          <!-- Submit type badge -->
-          <div class="flex items-center gap-2 mb-4 text-sm text-slate-500">
-            <component :is="submitTypeIcons[assignment.submitType]" class="h-4 w-4" />
-            <span>{{ submitTypeLabels[assignment.submitType] }}</span>
-          </div>
-
-          <!-- Markdown rendered description -->
-          <MarkdownRenderer
-            v-if="assignment.description"
-            :content="assignment.description"
-          />
-
-          <!-- Dates -->
-          <div class="flex flex-wrap gap-4 text-xs text-slate-500 mt-5 pt-4 border-t border-slate-100">
-            <span class="flex items-center gap-1">
-              <CalendarDays class="h-3.5 w-3.5" />
-              發布：{{ formatDate(assignment.releaseDate) }}
-            </span>
-            <span v-if="assignment.dueDate" class="flex items-center gap-1">
-              <Clock class="h-3.5 w-3.5" />
-              截止：{{ formatDate(assignment.dueDate) }}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <!-- Submit Card -->
-      <Card>
-        <CardContent class="!p-6 space-y-4">
-          <h2 class="font-semibold text-slate-900">提交作業</h2>
-
-          <!-- Already completed -->
-          <div v-if="submission?.status === 'completed'" class="p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div class="flex items-center gap-2 text-green-700">
-              <CheckCircle2 class="h-5 w-5" />
-              <span class="font-medium">作業已完成</span>
+    <main class="mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-8 lg:py-10">
+      <section class="min-w-0 space-y-6">
+        <div class="overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70">
+          <div class="border-b border-slate-100 bg-slate-950 px-6 py-7 text-white sm:px-8 sm:py-9">
+            <div class="mb-5 flex flex-wrap items-center gap-3 text-sm">
+              <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-slate-200 ring-1 ring-white/15">
+                <BookOpen class="h-4 w-4" />
+                {{ course.name }}
+              </span>
+              <span class="inline-flex items-center gap-2 rounded-full bg-sky-400/15 px-3 py-1.5 text-sky-100 ring-1 ring-sky-300/20">
+                <component :is="submitTypeIcons[assignment.submitType]" class="h-4 w-4" />
+                {{ submitTypeLabels[assignment.submitType] }}
+              </span>
             </div>
-            <p v-if="submission.submittedAt" class="text-sm text-green-600 mt-1">
+
+            <h1 class="max-w-3xl text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
+              {{ assignment.title }}
+            </h1>
+
+            <div class="mt-6 flex flex-wrap gap-3 text-sm text-slate-300">
+              <span class="inline-flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 ring-1 ring-white/10">
+                <CalendarDays class="h-4 w-4 text-sky-200" />
+                發布 {{ formatDate(assignment.releaseDate) }}
+              </span>
+              <span v-if="assignment.dueDate" class="inline-flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 ring-1 ring-white/10">
+                <Clock class="h-4 w-4 text-amber-200" />
+                截止 {{ formatDate(assignment.dueDate) }}
+              </span>
+            </div>
+          </div>
+
+          <article class="px-6 py-7 sm:px-8 sm:py-9">
+            <div v-if="assignment.description" class="assignment-document">
+              <MarkdownRenderer :content="assignment.description" />
+            </div>
+            <div v-else class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-slate-500">
+              這份作業尚未提供詳細內容。
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <aside class="lg:sticky lg:top-24 lg:self-start">
+        <div class="rounded-[1.75rem] border border-white/80 bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70 sm:p-6">
+          <div class="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <p class="text-sm font-medium text-slate-500">繳交狀態</p>
+              <h2 class="mt-1 text-xl font-bold text-slate-950">
+                {{ isCompleted ? '已完成' : '等待提交' }}
+              </h2>
+            </div>
+            <div
+              :class="[
+                'flex h-11 w-11 items-center justify-center rounded-2xl',
+                isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+              ]"
+            >
+              <CheckCircle2 v-if="isCompleted" class="h-5 w-5" />
+              <component v-else :is="submitTypeIcons[assignment.submitType]" class="h-5 w-5" />
+            </div>
+          </div>
+
+          <div v-if="isCompleted" class="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
+            <div class="flex items-center gap-2 font-medium">
+              <CheckCircle2 class="h-5 w-5" />
+              作業已完成
+            </div>
+            <p v-if="submission?.submittedAt" class="mt-1 text-sm text-emerald-700">
               提交時間：{{ new Date(submission.submittedAt).toLocaleString('zh-TW') }}
             </p>
           </div>
 
-          <!-- Input (non-complete types) -->
-          <div v-if="assignment.submitType !== 'complete'">
+          <div v-if="assignment.submitType !== 'complete'" class="mb-5 space-y-2">
+            <label class="text-sm font-medium text-slate-700">提交內容</label>
             <Input
               v-model="submitData"
               :placeholder="submitInputPlaceholders[assignment.submitType]"
-              :disabled="submission?.status === 'completed'"
+              :disabled="isCompleted"
+              class="h-11 rounded-xl border-slate-300 bg-slate-50 focus:bg-white"
             />
           </div>
 
-          <!-- Feedback message -->
           <div
             v-if="message"
             :class="[
-              'text-sm text-center p-3 rounded-lg',
-              message.includes('成功') ? 'text-green-700 bg-green-50 border border-green-200' : 'text-red-700 bg-red-50 border border-red-200'
+              'mb-5 rounded-2xl border p-3 text-center text-sm',
+              message.includes('成功') ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'
             ]"
           >
             {{ message }}
           </div>
 
-          <!-- Submit button -->
           <Button
-            class="w-full"
-            :disabled="isSubmitting || submission?.status === 'completed'"
+            class="h-12 w-full rounded-2xl bg-slate-950 text-base hover:bg-slate-800"
+            :disabled="isSubmitting || isCompleted"
             @click="handleSubmit"
           >
             <Loader2 v-if="isSubmitting" class="mr-2 h-4 w-4 animate-spin" />
-            <CheckCircle2 v-else-if="submission?.status === 'completed'" class="mr-2 h-4 w-4" />
+            <CheckCircle2 v-else-if="isCompleted" class="mr-2 h-4 w-4" />
             <component v-else :is="submitTypeIcons[assignment.submitType]" class="mr-2 h-4 w-4" />
-            {{ submission?.status === 'completed' ? '已完成' : isSubmitting ? '提交中...' : '提交作業' }}
+            {{ submitActionLabel }}
           </Button>
-        </CardContent>
-      </Card>
 
+          <p class="mt-4 text-center text-xs leading-relaxed text-slate-500">
+            完成後系統會自動更新你的課程進度，並解鎖下一個作業。
+          </p>
+        </div>
+      </aside>
     </main>
   </div>
 </template>
