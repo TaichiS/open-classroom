@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Textarea } from '@/components/ui/Textarea'
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer.vue'
 import {
   ArrowLeft,
@@ -234,11 +235,29 @@ async function handleSubmit() {
             <p v-if="submission?.submittedAt" class="mt-1 text-sm text-emerald-700">
               提交時間：{{ new Date(submission.submittedAt).toLocaleString('zh-TW') }}
             </p>
+            <p v-if="submission?.submitData" class="mt-2 text-sm text-emerald-800 border-t border-emerald-200 pt-2 whitespace-pre-wrap">
+              {{ submission.submitData }}
+            </p>
           </div>
 
-          <div v-if="assignment.submitType !== 'complete'" class="mb-5 space-y-2">
-            <label class="text-sm font-medium text-slate-700">提交內容</label>
+          <!-- 作答 / 留言（complete 型為選填 textarea；其他型為必填 input） -->
+          <div class="mb-5 space-y-2">
+            <label class="text-sm font-medium text-slate-700">
+              <template v-if="assignment.submitType === 'complete'">
+                作答內容 <span class="font-normal text-slate-400">（選填）</span>
+              </template>
+              <template v-else>提交內容</template>
+            </label>
+            <Textarea
+              v-if="assignment.submitType === 'complete'"
+              v-model="submitData"
+              placeholder="選填：寫下你的答案、解題過程或心得..."
+              :disabled="isCompleted"
+              :rows="4"
+              class="rounded-xl border-slate-300 bg-slate-50 focus:bg-white resize-none"
+            />
             <Input
+              v-else
               v-model="submitData"
               :placeholder="submitInputPlaceholders[assignment.submitType]"
               :disabled="isCompleted"
