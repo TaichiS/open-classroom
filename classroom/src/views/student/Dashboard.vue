@@ -20,6 +20,9 @@ import {
   Loader2,
   Trophy,
   Key,
+  User,
+  ChevronDown,
+  Pencil,
 } from 'lucide-vue-next'
 import {
   findCourseByCode,
@@ -29,6 +32,7 @@ import {
   getSubmissionsByAssignment,
   saveMember,
   findMember,
+  updateProfile,
 } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
 import type { Course, CourseMember } from '@/types'
@@ -185,6 +189,29 @@ function openApiKeyDialog() {
   loadApiKeys()
 }
 
+const isProfileMenuOpen = ref(false)
+const isNicknameDialogOpen = ref(false)
+const newNickname = ref('')
+const isSavingNickname = ref(false)
+
+function openNicknameDialog() {
+  newNickname.value = authStore.profile?.name ?? ''
+  isProfileMenuOpen.value = false
+  isNicknameDialogOpen.value = true
+}
+
+async function handleSaveNickname() {
+  if (!newNickname.value.trim() || !authStore.profile) return
+  isSavingNickname.value = true
+  try {
+    await updateProfile(authStore.profile.id, newNickname.value.trim())
+    await authStore.refreshProfile()
+    isNicknameDialogOpen.value = false
+  } finally {
+    isSavingNickname.value = false
+  }
+}
+
 function handleLogout() {
   authStore.logout()
   router.push('/login')
@@ -200,22 +227,43 @@ function handleLogout() {
           <BookOpen class="h-6 w-6 text-slate-900" />
           <span class="text-xl font-bold">作業管理系統</span>
         </div>
-        <div class="flex items-center gap-4">
-          <router-link to="/showcase">
+        <div class="flex items-center gap-2">
+          <router-link to="/showcase" class="hidden sm:block">
             <Button variant="ghost" size="sm">
               <Trophy class="h-4 w-4 mr-2" />
               作業展示
             </Button>
           </router-link>
-          <span class="text-sm text-slate-600">{{ userName }}</span>
-          <Button variant="outline" size="sm" @click="openApiKeyDialog">
-            <Key class="w-4 h-4 mr-1" />
-            API Keys
-          </Button>
-          <Button variant="ghost" size="sm" @click="handleLogout">
-            <LogOut class="h-4 w-4 mr-2" />
-            登出
-          </Button>
+
+          <!-- Profile dropdown -->
+          <div class="relative">
+            <div v-if="isProfileMenuOpen" class="fixed inset-0 z-40" @click="isProfileMenuOpen = false" />
+            <Button variant="ghost" size="sm" class="relative z-50 gap-1" @click="isProfileMenuOpen = !isProfileMenuOpen">
+              <User class="h-4 w-4" />
+              <span class="hidden sm:inline text-sm">{{ userName }}</span>
+              <ChevronDown class="h-3.5 w-3.5 text-slate-400" />
+            </Button>
+            <div v-if="isProfileMenuOpen" class="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1">
+              <div class="px-4 py-2 text-xs text-slate-400 border-b border-slate-100">{{ userName }}</div>
+              <router-link to="/showcase" class="sm:hidden flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" @click="isProfileMenuOpen = false">
+                <Trophy class="h-4 w-4" />
+                作業展示
+              </router-link>
+              <button class="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 text-left" @click="openNicknameDialog">
+                <Pencil class="h-4 w-4" />
+                修改暱稱
+              </button>
+              <button class="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 text-left" @click="() => { openApiKeyDialog(); isProfileMenuOpen = false }">
+                <Key class="h-4 w-4" />
+                API Keys
+              </button>
+              <div class="border-t border-slate-100 my-1" />
+              <button class="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 text-left" @click="handleLogout">
+                <LogOut class="h-4 w-4" />
+                登出
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </header>
@@ -282,6 +330,27 @@ function handleLogout() {
         </div>
       </div>
     </main>
+
+    <!-- Nickname Dialog -->
+    <Dialog v-model:open="isNicknameDialogOpen">
+      <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 mx-4">
+          <DialogHeader>
+            <DialogTitle>修改暱稱</DialogTitle>
+          </DialogHeader>
+          <div class="mt-4 space-y-4">
+            <Input v-model="newNickname" placeholder="輸入新暱稱" @keyup.enter="handleSaveNickname" />
+            <div class="flex justify-end gap-2">
+              <Button variant="outline" @click="isNicknameDialogOpen = false">取消</Button>
+              <Button :disabled="!newNickname.trim() || isSavingNickname" @click="handleSaveNickname">
+                <Loader2 v-if="isSavingNickname" class="w-4 h-4 animate-spin mr-1" />
+                儲存
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Dialog>
 
     <!-- API Key Management Dialog -->
     <Dialog v-model:open="isApiKeyDialogOpen">

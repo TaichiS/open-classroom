@@ -202,6 +202,23 @@ export async function saveDiscussion(message: {
   })
 }
 
+export async function updateProfile(id: string, name: string): Promise<void> {
+  await supabase.from('profiles').update({ name }).eq('id', id)
+}
+
+export async function getDiscussionCountsByAssignments(assignmentIds: string[]): Promise<Record<string, number>> {
+  if (assignmentIds.length === 0) return {}
+  const { data } = await supabase
+    .from('discussion_messages')
+    .select('assignment_id')
+    .in('assignment_id', assignmentIds)
+  const counts: Record<string, number> = {}
+  for (const row of (data ?? [])) {
+    counts[row.assignment_id] = (counts[row.assignment_id] ?? 0) + 1
+  }
+  return counts
+}
+
 // ─── Utilities ────────────────────────────────────────────────────────────────
 export function generateCourseCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'

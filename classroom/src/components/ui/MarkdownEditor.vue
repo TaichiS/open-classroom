@@ -34,7 +34,7 @@ const renderedHtml = computed(() => {
         :class="[
           'px-4 py-2 text-sm font-medium transition-colors',
           activeTab === 'edit'
-            ? 'text-indigo-600 border-b-2 border-indigo-500 bg-white'
+            ? 'text-slate-900 border-b-2 border-slate-900 bg-white'
             : 'text-slate-500 hover:text-slate-700'
         ]"
         @click="activeTab = 'edit'"
@@ -46,7 +46,7 @@ const renderedHtml = computed(() => {
         :class="[
           'px-4 py-2 text-sm font-medium transition-colors',
           activeTab === 'preview'
-            ? 'text-indigo-600 border-b-2 border-indigo-500 bg-white'
+            ? 'text-slate-900 border-b-2 border-slate-900 bg-white'
             : 'text-slate-500 hover:text-slate-700'
         ]"
         @click="activeTab = 'preview'"
@@ -98,36 +98,36 @@ const renderedHtml = computed(() => {
 .md-preview :deep(h1) {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #6366f1;
+  color: #0f172a;
   margin: 0.75rem 0 0.5rem;
   line-height: 1.3;
 }
 
 .md-preview :deep(h2) {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 700;
-  color: #374151;
+  color: #0f172a;
   margin: 1rem 0 0.5rem;
-  padding-bottom: 0.25rem;
-  background: linear-gradient(90deg, #6366f1, transparent) bottom / 100% 2px no-repeat;
+  padding-left: 0.75rem;
+  border-left: 4px solid #38bdf8;
 }
 
 .md-preview :deep(h3) {
   font-size: 1rem;
   font-weight: 600;
-  color: #8b5cf6;
+  color: #334155;
   margin: 0.75rem 0 0.375rem;
 }
 
 .md-preview :deep(p) {
   margin: 0.5rem 0;
-  color: #374151;
-  line-height: 1.7;
+  color: #334155;
+  line-height: 1.75;
 }
 
 .md-preview :deep(code:not(pre code)) {
-  background: #f0f0ff;
-  color: #e11d48;
+  background: #f1f5f9;
+  color: #be123c;
   padding: 0.1em 0.35em;
   border-radius: 4px;
   font-size: 0.875em;
@@ -135,7 +135,7 @@ const renderedHtml = computed(() => {
 }
 
 .md-preview :deep(pre) {
-  background: #1e1e2e;
+  background: #0f172a;
   border-radius: 8px;
   padding: 1rem;
   overflow-x: auto;
@@ -152,12 +152,12 @@ const renderedHtml = computed(() => {
 }
 
 .md-preview :deep(blockquote) {
-  border-left: 4px solid #6366f1;
-  background: #fafaff;
+  border-left: 4px solid #38bdf8;
+  background: #f8fafc;
   padding: 0.5rem 1rem;
   margin: 0.75rem 0;
   border-radius: 0 6px 6px 0;
-  color: #4b5563;
+  color: #475569;
 }
 
 .md-preview :deep(ul) {
@@ -170,7 +170,7 @@ const renderedHtml = computed(() => {
   position: relative;
   padding-left: 0.75rem;
   margin: 0.25rem 0;
-  color: #374151;
+  color: #334155;
   line-height: 1.6;
 }
 
@@ -178,7 +178,7 @@ const renderedHtml = computed(() => {
   content: '•';
   position: absolute;
   left: -0.5rem;
-  color: #6366f1;
+  color: #0284c7;
   font-weight: 700;
 }
 
@@ -189,7 +189,7 @@ const renderedHtml = computed(() => {
 
 .md-preview :deep(ol li) {
   margin: 0.25rem 0;
-  color: #374151;
+  color: #334155;
   line-height: 1.6;
 }
 
@@ -201,26 +201,26 @@ const renderedHtml = computed(() => {
 }
 
 .md-preview :deep(th) {
-  background: #f0f0ff;
-  color: #4b5563;
+  background: #f8fafc;
+  color: #334155;
   font-weight: 600;
   padding: 0.5rem 0.75rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e2e8f0;
   text-align: left;
 }
 
 .md-preview :deep(td) {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #e5e7eb;
-  color: #374151;
+  border: 1px solid #e2e8f0;
+  color: #334155;
 }
 
 .md-preview :deep(tr:nth-child(even) td) {
-  background: #f8f8ff;
+  background: #f8fafc;
 }
 
 .md-preview :deep(a) {
-  color: #6366f1;
+  color: #0284c7;
   text-decoration: none;
 }
 
@@ -230,12 +230,12 @@ const renderedHtml = computed(() => {
 
 .md-preview :deep(strong) {
   font-weight: 700;
-  color: #6366f1;
+  color: #0f172a;
 }
 
 .md-preview :deep(hr) {
   border: none;
-  border-top: 2px solid #e5e7eb;
+  border-top: 1px solid #e2e8f0;
   margin: 1rem 0;
 }
 
