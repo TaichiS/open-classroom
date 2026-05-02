@@ -53,16 +53,26 @@ export async function findCourseByCode(code: string): Promise<Course | null> {
 }
 
 export async function saveCourse(course: Omit<Course, 'id' | 'createdAt'>): Promise<Course> {
-  const { data, error } = await supabase.from('courses').insert({
-    name: course.name,
-    description: course.description,
-    material_url: course.materialUrl,
-    cover_image: course.coverImage,
-    course_code: course.courseCode,
-    teacher_id: course.teacherId,
-  }).select().single()
-  if (error) throw error
-  return toCourse(data)
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('登入狀態已失效，請重新登入後再試。')
+
+  const response = await fetch('/api/courses', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: course.name,
+      description: course.description,
+      materialUrl: course.materialUrl,
+      courseCode: course.courseCode,
+    }),
+  })
+
+  const result = await response.json()
+  if (!response.ok) throw new Error(result.error || '建立課程失敗')
+  return toCourse(result)
 }
 
 export async function updateCourse(id: string, patch: Partial<Pick<Course, 'name' | 'description' | 'materialUrl' | 'coverImage'>>): Promise<void> {
