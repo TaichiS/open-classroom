@@ -16,6 +16,10 @@ vue-app/node_modules/
 # Vercel
 .vercel
 
+# Supabase CLI local state
+supabase/.temp/
+**/supabase/.temp/
+
 # macOS
 .DS_Store
 
