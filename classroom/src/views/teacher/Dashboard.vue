@@ -47,10 +47,12 @@ const studentCountMap = ref<Record<string, number>>({})
 const assignmentCountMap = ref<Record<string, number>>({})
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
+const createCourseError = ref('')
 
 const newCourse = ref({
   name: '',
   description: '',
+  materialUrl: '',
 })
 
 const userName = computed(() => authStore.profile?.name || '老師')
@@ -93,23 +95,51 @@ async function handleCreateCourse() {
   if (!newCourse.value.name.trim() || !authStore.profile) return
 
   isCreating.value = true
+  createCourseError.value = ''
 
   try {
-    await saveCourse({
-      name: newCourse.value.name.trim(),
-      description: newCourse.value.description.trim(),
-      courseCode: generateCourseCode(),
-      teacherId: authStore.profile.id,
-    })
+    await withTimeout(
+      saveCourse({
+        name: newCourse.value.name.trim(),
+        description: newCourse.value.description.trim(),
+        materialUrl: newCourse.value.materialUrl.trim() || undefined,
+        courseCode: generateCourseCode(),
+        teacherId: authStore.profile.id,
+      }),
+      '建立課程逾時，請確認網路連線或 Supabase 狀態後再試。'
+    )
 
-    newCourse.value = { name: '', description: '' }
+    newCourse.value = { name: '', description: '', materialUrl: '' }
     isCreateDialogOpen.value = false
-    await loadCourses()
+    await withTimeout(
+      loadCourses(),
+      '課程已送出，但重新載入列表逾時。請重新整理頁面確認結果。'
+    )
   } catch (e) {
     console.error('Failed to create course:', e)
+    createCourseError.value = getCreateCourseErrorMessage(e)
   } finally {
     isCreating.value = false
   }
+}
+
+function withTimeout<T>(promise: Promise<T>, message: string, timeoutMs = 15000): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_resolve, reject) => {
+      window.setTimeout(() => reject(new Error(message)), timeoutMs)
+    }),
+  ])
+}
+
+function getCreateCourseErrorMessage(e: unknown): string {
+  const message = e instanceof Error ? e.message : String(e)
+
+  if (message.includes('material_url') || message.includes('schema cache')) {
+    return '建立失敗：Supabase 的 courses 表尚未新增 material_url 欄位。請先執行 migration 003_course_material_url.sql。'
+  }
+
+  return message || '建立課程失敗，請稍後再試。'
 }
 
 const isApiKeyDialogOpen = ref(false)
@@ -276,6 +306,18 @@ function handleLogout() {
               placeholder="輸入課程描述"
               :rows="3"
             />
+          </div>
+          <div class="space-y-2">
+            <Label for="courseMaterialUrl">教材連結</Label>
+            <Input
+              id="courseMaterialUrl"
+              v-model="newCourse.materialUrl"
+              type="url"
+              placeholder="https://..."
+            />
+          </div>
+          <div v-if="createCourseError" class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {{ createCourseError }}
           </div>
           <div class="flex justify-end gap-2">
             <Button variant="outline" @click="isCreateDialogOpen = false">

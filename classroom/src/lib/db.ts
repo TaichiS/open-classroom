@@ -6,7 +6,7 @@ function toProfile(r: any): Profile {
   return { id: r.id, name: r.name, role: r.role, avatar: r.avatar ?? undefined, createdAt: r.created_at }
 }
 function toCourse(r: any): Course {
-  return { id: r.id, name: r.name, description: r.description, coverImage: r.cover_image ?? undefined, courseCode: r.course_code, teacherId: r.teacher_id, createdAt: r.created_at }
+  return { id: r.id, name: r.name, description: r.description, materialUrl: r.material_url ?? undefined, coverImage: r.cover_image ?? undefined, courseCode: r.course_code, teacherId: r.teacher_id, createdAt: r.created_at }
 }
 function toMember(r: any): CourseMember {
   return { id: r.id, courseId: r.course_id, studentId: r.student_id, joinedAt: r.joined_at, currentAssignmentIndex: r.current_assignment_index }
@@ -56,6 +56,7 @@ export async function saveCourse(course: Omit<Course, 'id' | 'createdAt'>): Prom
   const { data, error } = await supabase.from('courses').insert({
     name: course.name,
     description: course.description,
+    material_url: course.materialUrl,
     cover_image: course.coverImage,
     course_code: course.courseCode,
     teacher_id: course.teacherId,
@@ -64,12 +65,13 @@ export async function saveCourse(course: Omit<Course, 'id' | 'createdAt'>): Prom
   return toCourse(data)
 }
 
-export async function updateCourse(id: string, patch: Partial<Pick<Course, 'name' | 'description' | 'coverImage'>>): Promise<void> {
-  await supabase.from('courses').update({
-    name: patch.name,
-    description: patch.description,
-    cover_image: patch.coverImage,
-  }).eq('id', id)
+export async function updateCourse(id: string, patch: Partial<Pick<Course, 'name' | 'description' | 'materialUrl' | 'coverImage'>>): Promise<void> {
+  const update: Record<string, unknown> = {}
+  if (patch.name !== undefined) update.name = patch.name
+  if (patch.description !== undefined) update.description = patch.description
+  if (patch.materialUrl !== undefined) update.material_url = patch.materialUrl || null
+  if (patch.coverImage !== undefined) update.cover_image = patch.coverImage
+  await supabase.from('courses').update(update).eq('id', id)
 }
 
 // ─── Course Members ───────────────────────────────────────────────────────────

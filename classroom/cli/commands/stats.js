@@ -14,12 +14,17 @@ export function registerStats(program) {
       console.log(`學生人數：${data.totalStudents}`)
       console.log(`作業數量：${data.totalAssignments}`)
       console.log(`整體完成率：${rate}%`)
+      if (data.assignmentsWithDiscussion !== undefined) {
+        console.log(`有討論的作業：${data.assignmentsWithDiscussion}/${data.totalAssignments}`)
+      }
       console.log('')
       console.log('各作業提交狀況：')
+      const discMap = Object.fromEntries((data.discussionsByAssignment || []).map(d => [d.assignmentId, d.count]))
       data.submissionsByAssignment.forEach(a => {
         const bar = '█'.repeat(Math.round((a.submitted / data.totalStudents) * 20))
         const empty = '░'.repeat(20 - bar.length)
-        console.log(`  ${a.title}`)
+        const disc = discMap[a.assignmentId] ? ` 💬${discMap[a.assignmentId]}` : ''
+        console.log(`  ${a.title}${disc}`)
         console.log(`  [${bar}${empty}] 已交 ${a.submitted}／待交 ${a.pending}`)
       })
     })

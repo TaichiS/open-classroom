@@ -16,6 +16,7 @@ import {
   MessageCircle,
   FileText,
   Link as LinkIcon,
+  ExternalLink,
   Image as ImageIcon,
   MousePointerClick,
   ChevronRight,
@@ -167,6 +168,16 @@ function handleLogout() {
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="mb-8">
         <p class="text-slate-600">{{ course.description }}</p>
+        <a
+          v-if="course.materialUrl"
+          :href="course.materialUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="mt-4 inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 break-all"
+        >
+          <ExternalLink class="h-3.5 w-3.5 shrink-0" />
+          教材連結
+        </a>
       </div>
 
       <div class="space-y-4">

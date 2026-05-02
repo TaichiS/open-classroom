@@ -24,6 +24,7 @@ import {
   MousePointerClick,
   FileText,
   Link as LinkIcon,
+  ExternalLink,
   Image as ImageIcon,
   Loader2,
   Trash2,
@@ -33,12 +34,14 @@ import {
 } from 'lucide-vue-next'
 import {
   findCourseById,
+  updateCourse,
   getAssignmentsByCourse,
   getMembersByCourse,
   findProfileById,
   saveAssignment,
   updateAssignment,
   deleteAssignment,
+  getDiscussionCountsByAssignments,
 } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
 import type { Course, Assignment, SubmitType, CourseMember } from '@/types'
@@ -53,6 +56,12 @@ const members = ref<CourseMember[]>([])
 const memberNameMap = ref<Record<string, string>>({})
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
+const discussionCountMap = ref<Record<string, number>>({})
+const isLoading = ref(true)
+const errorMessage = ref('')
+const isEditingMaterial = ref(false)
+const isSavingMaterial = ref(false)
+const materialUrlInput = ref('')
 
 // Edit state
 const isEditDialogOpen = ref(false)
@@ -92,15 +101,41 @@ onMounted(async () => {
 })
 
 async function loadData() {
-  const courseData = await findCourseById(courseId.value)
-  if (!courseData || courseData.teacherId !== authStore.profile?.id) {
-    router.push('/teacher')
-    return
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    if (!authStore.profile && authStore.user) {
+      await authStore.refreshProfile()
+    }
+
+    if (!authStore.profile) {
+      router.push('/login')
+      return
+    }
+
+    const courseData = await findCourseById(courseId.value)
+    if (!courseData || courseData.teacherId !== authStore.profile.id) {
+      router.push('/teacher')
+      return
+    }
+
+    course.value = courseData
+    materialUrlInput.value = courseData.materialUrl ?? ''
+    const [assignmentData, memberData] = await Promise.all([
+      getAssignmentsByCourse(courseId.value),
+      getMembersByCourse(courseId.value),
+    ])
+    assignments.value = assignmentData
+    members.value = memberData
+    discussionCountMap.value = await getDiscussionCountsByAssignments(assignments.value.map(a => a.id))
+    await loadMemberNames()
+  } catch (e) {
+    console.error('Failed to load course detail:', e)
+    errorMessage.value = '載入課程資料失敗，請重新整理或稍後再試。'
+  } finally {
+    isLoading.value = false
   }
-  course.value = courseData
-  assignments.value = await getAssignmentsByCourse(courseId.value)
-  members.value = await getMembersByCourse(courseId.value)
-  await loadMemberNames()
 }
 
 async function loadMemberNames() {
@@ -245,6 +280,24 @@ async function handleDeleteAssignment(assignmentId: string) {
   }
 }
 
+async function handleSaveMaterialUrl() {
+  if (!course.value) return
+
+  isSavingMaterial.value = true
+
+  try {
+    const materialUrl = materialUrlInput.value.trim()
+    await updateCourse(course.value.id, { materialUrl })
+    course.value = { ...course.value, materialUrl: materialUrl || undefined }
+    materialUrlInput.value = materialUrl
+    isEditingMaterial.value = false
+  } catch (e) {
+    console.error('Failed to update material URL:', e)
+  } finally {
+    isSavingMaterial.value = false
+  }
+}
+
 function handleLogout() {
   authStore.logout()
   router.push('/login')
@@ -252,7 +305,7 @@ function handleLogout() {
 </script>
 
 <template>
-  <div v-if="course" class="min-h-screen bg-slate-50">
+  <div class="min-h-screen bg-slate-50">
     <!-- Header -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -261,7 +314,7 @@ function handleLogout() {
             <ArrowLeft class="h-4 w-4 mr-2" />
             返回
           </Button>
-          <div class="flex items-center gap-2">
+          <div v-if="course" class="flex items-center gap-2">
             <BookOpen class="h-6 w-6 text-slate-900" />
             <span class="text-xl font-bold">{{ course.name }}</span>
           </div>
@@ -273,17 +326,70 @@ function handleLogout() {
       </div>
     </header>
 
+    <main v-if="isLoading" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div class="flex items-center justify-center text-slate-500">
+        <Loader2 class="mr-2 h-5 w-5 animate-spin" />
+        載入課程作業中...
+      </div>
+    </main>
+
+    <main v-else-if="errorMessage" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div class="rounded-lg border border-red-200 bg-red-50 p-6 text-red-700">
+        {{ errorMessage }}
+      </div>
+    </main>
+
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main v-else-if="course" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Course Info -->
       <div class="mb-8">
         <p class="text-slate-600 mb-4">{{ course.description }}</p>
-        <div class="flex items-center gap-4 text-sm text-slate-600">
+        <div class="flex flex-wrap items-center gap-4 text-sm text-slate-600">
           <span class="flex items-center gap-1">
             <Users class="h-4 w-4" />
             {{ members.length }} 位學生
           </span>
           <Badge variant="secondary">課程碼：{{ course.courseCode }}</Badge>
+        </div>
+        <div class="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 class="text-sm font-semibold text-slate-900">教材連結</h2>
+              <a
+                v-if="course.materialUrl && !isEditingMaterial"
+                :href="course.materialUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="mt-1 inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 break-all"
+              >
+                <ExternalLink class="h-3.5 w-3.5 shrink-0" />
+                {{ course.materialUrl }}
+              </a>
+              <p v-else-if="!isEditingMaterial" class="mt-1 text-sm text-slate-500">
+                尚未設定教材連結
+              </p>
+            </div>
+            <Button v-if="!isEditingMaterial" variant="outline" size="sm" @click="isEditingMaterial = true">
+              {{ course.materialUrl ? '修改連結' : '新增連結' }}
+            </Button>
+          </div>
+          <div v-if="isEditingMaterial" class="mt-4 flex flex-col gap-2 sm:flex-row">
+            <Input
+              v-model="materialUrlInput"
+              type="url"
+              placeholder="https://..."
+              class="flex-1"
+            />
+            <div class="flex gap-2">
+              <Button variant="outline" :disabled="isSavingMaterial" @click="isEditingMaterial = false">
+                取消
+              </Button>
+              <Button :disabled="isSavingMaterial" @click="handleSaveMaterialUrl">
+                <Loader2 v-if="isSavingMaterial" class="mr-2 h-4 w-4 animate-spin" />
+                保存
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -328,7 +434,7 @@ function handleLogout() {
             :key="assignment.id"
             class="hover:shadow-md transition-shadow duration-200"
           >
-            <CardContent class="p-5 lg:p-6">
+            <CardContent class="!p-5 lg:!p-6">
               <!-- Title row -->
               <div class="flex flex-wrap items-center gap-2 mb-3">
                 <h3 class="font-semibold text-slate-900 text-base leading-snug">
@@ -367,6 +473,9 @@ function handleLogout() {
                   <Button variant="ghost" size="sm" class="cursor-pointer">
                     <MessageSquare class="h-4 w-4 mr-1.5" />
                     討論區
+                    <span v-if="discussionCountMap[assignment.id]" class="ml-1.5 bg-slate-100 text-slate-600 text-xs rounded-full px-1.5 py-0.5 font-medium leading-none">
+                      {{ discussionCountMap[assignment.id] }}
+                    </span>
                   </Button>
                 </router-link>
                 <router-link :to="`/teacher/submissions/${assignment.id}`">

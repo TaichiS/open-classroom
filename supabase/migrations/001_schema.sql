@@ -16,6 +16,7 @@ create table public.courses (
   id uuid default gen_random_uuid() primary key,
   name text not null,
   description text not null,
+  material_url text,
   cover_image text,
   course_code text unique not null,
   teacher_id uuid references public.profiles(id) on delete cascade not null,

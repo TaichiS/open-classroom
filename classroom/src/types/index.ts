@@ -15,6 +15,7 @@ export interface Course {
   id: string
   name: string
   description: string
+  materialUrl?: string
   coverImage?: string
   courseCode: string
   teacherId: string

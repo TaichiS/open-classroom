@@ -38,9 +38,8 @@ async function selectRole(role: UserRole) {
       <CardContent class="grid grid-cols-2 gap-4">
         <Button
           variant="outline"
-          class="h-24 flex flex-col gap-2"
-          :disabled="isSubmitting"
-          @click="selectRole('teacher')"
+          class="h-24 flex flex-col gap-2 opacity-40 cursor-not-allowed"
+          :disabled="true"
         >
           <span class="text-2xl">👩‍🏫</span>
           <span>我是老師</span>

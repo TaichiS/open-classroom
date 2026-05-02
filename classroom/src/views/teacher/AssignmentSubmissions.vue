@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { Button } from '@/components/ui/Button'
@@ -45,6 +45,8 @@ const isShowcaseDialogOpen = ref(false)
 const feedback = ref('')
 const showcaseAction = ref<'approve' | 'reject' | null>(null)
 const rejectReason = ref('')
+const isLoading = ref(true)
+const errorMessage = ref('')
 const isProcessing = ref(false)
 
 const assignmentId = computed(() => route.params.id as string)
@@ -60,22 +62,45 @@ onMounted(async () => {
   await loadData()
 })
 
+watch(assignmentId, async () => {
+  await loadData()
+})
+
 async function loadData() {
-  const assignmentData = await findAssignmentById(assignmentId.value)
-  if (!assignmentData) {
-    router.push('/teacher')
-    return
-  }
+  isLoading.value = true
+  errorMessage.value = ''
 
-  const courseData = await findCourseById(assignmentData.courseId)
-  if (!courseData || courseData.teacherId !== authStore.profile?.id) {
-    router.push('/teacher')
-    return
-  }
+  try {
+    if (!authStore.profile && authStore.user) {
+      await authStore.refreshProfile()
+    }
 
-  assignment.value = assignmentData
-  course.value = courseData
-  await loadSubmissions()
+    if (!authStore.profile) {
+      router.push('/login')
+      return
+    }
+
+    const assignmentData = await findAssignmentById(assignmentId.value)
+    if (!assignmentData) {
+      errorMessage.value = '找不到這份作業。'
+      return
+    }
+
+    const courseData = await findCourseById(assignmentData.courseId)
+    if (!courseData || courseData.teacherId !== authStore.profile.id) {
+      router.push('/teacher')
+      return
+    }
+
+    assignment.value = assignmentData
+    course.value = courseData
+    await loadSubmissions()
+  } catch (e) {
+    console.error('Failed to load assignment submissions:', e)
+    errorMessage.value = '載入提交資料失敗，請重新整理或稍後再試。'
+  } finally {
+    isLoading.value = false
+  }
 }
 
 async function loadSubmissions() {
@@ -149,19 +174,32 @@ function formatDate(dateStr: string): string {
 </script>
 
 <template>
-  <div v-if="assignment && course" class="min-h-screen bg-slate-50">
+  <div class="min-h-screen bg-slate-50">
     <!-- Header -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">
-        <Button variant="ghost" size="sm" @click="router.push(`/teacher/course/${course.id}`)">
+        <Button variant="ghost" size="sm" @click="router.push(course ? `/teacher/course/${course.id}` : '/teacher')">
           <ArrowLeft class="h-4 w-4 mr-2" />
           返回課程
         </Button>
       </div>
     </header>
 
+    <main v-if="isLoading" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div class="flex items-center justify-center text-slate-500">
+        <Loader2 class="mr-2 h-5 w-5 animate-spin" />
+        載入提交資料中...
+      </div>
+    </main>
+
+    <main v-else-if="errorMessage" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div class="rounded-lg border border-red-200 bg-red-50 p-6 text-red-700">
+        {{ errorMessage }}
+      </div>
+    </main>
+
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main v-else-if="assignment && course" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="mb-8">
         <h1 class="text-2xl font-bold mb-2">{{ assignment.title }}</h1>
         <p class="text-slate-600">{{ course.name }}</p>
@@ -185,7 +223,7 @@ function formatDate(dateStr: string): string {
             v-for="submission in submissions"
             :key="submission.id"
           >
-            <CardContent class="p-6">
+            <CardContent class="!p-6">
               <div class="flex items-start justify-between">
                 <div class="flex-1">
                   <div class="flex items-center gap-2 mb-2">

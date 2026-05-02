@@ -13,9 +13,10 @@ export default withErrorHandler(async function handler(req: Request): Promise<Re
   const courseId = url.searchParams.get('courseId')
   if (!courseId) return errorResponse('courseId is required', 400)
 
-  const [membersRes, assignmentsRes] = await Promise.all([
+  const [membersRes, assignmentsRes, discussionsRes] = await Promise.all([
     supabase.from('course_members').select('student_id').eq('course_id', courseId),
     supabase.from('assignments').select('id, title').eq('course_id', courseId).order('order_index'),
+    supabase.from('discussion_messages').select('assignment_id').eq('course_id', courseId),
   ])
 
   if (membersRes.error) return errorResponse(membersRes.error.message, 500)
@@ -40,9 +41,19 @@ export default withErrorHandler(async function handler(req: Request): Promise<Re
     })
   )
 
+  const discussionCounts: Record<string, number> = {}
+  for (const row of (discussionsRes.data ?? [])) {
+    discussionCounts[row.assignment_id] = (discussionCounts[row.assignment_id] ?? 0) + 1
+  }
+  const discussionsByAssignment = assignments.map((a: { id: string }) => ({
+    assignmentId: a.id,
+    count: discussionCounts[a.id] ?? 0,
+  }))
+  const assignmentsWithDiscussion = discussionsByAssignment.filter(d => d.count > 0).length
+
   const totalSubmissions = submissionsByAssignment.reduce((sum, a) => sum + a.submitted, 0)
   const maxPossible = totalStudents * totalAssignments
   const completionRate = maxPossible > 0 ? totalSubmissions / maxPossible : 0
 
-  return jsonResponse({ totalStudents, totalAssignments, submissionsByAssignment, completionRate })
+  return jsonResponse({ totalStudents, totalAssignments, submissionsByAssignment, completionRate, discussionsByAssignment, assignmentsWithDiscussion })
 })
