@@ -98,7 +98,7 @@ async function handleCreateCourse() {
   createCourseError.value = ''
 
   try {
-    await withTimeout(
+    const createdCourse = await withTimeout(
       saveCourse({
         name: newCourse.value.name.trim(),
         description: newCourse.value.description.trim(),
@@ -110,12 +110,18 @@ async function handleCreateCourse() {
       35000
     )
 
+    myCourses.value = [createdCourse, ...myCourses.value.filter(course => course.id !== createdCourse.id)]
+    studentCountMap.value[createdCourse.id] = 0
+    assignmentCountMap.value[createdCourse.id] = 0
     newCourse.value = { name: '', description: '', materialUrl: '' }
     isCreateDialogOpen.value = false
-    await withTimeout(
+
+    withTimeout(
       loadCourses(),
       '課程已送出，但重新載入列表逾時。請重新整理頁面確認結果。'
-    )
+    ).catch((e) => {
+      console.warn('Created course, but failed to refresh course list:', e)
+    })
   } catch (e) {
     console.error('Failed to create course:', e)
     createCourseError.value = getCreateCourseErrorMessage(e)
