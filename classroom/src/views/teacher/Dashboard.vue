@@ -105,8 +105,9 @@ async function handleCreateCourse() {
         materialUrl: newCourse.value.materialUrl.trim() || undefined,
         courseCode: generateCourseCode(),
         teacherId: authStore.profile.id,
-      }),
-      '建立課程逾時，請確認網路連線或 Supabase 狀態後再試。'
+      }, authStore.session?.access_token),
+      '建立課程逾時，請確認網路連線或 Supabase 狀態後再試。',
+      35000
     )
 
     newCourse.value = { name: '', description: '', materialUrl: '' }

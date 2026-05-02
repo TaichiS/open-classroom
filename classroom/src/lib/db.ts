@@ -52,14 +52,16 @@ export async function findCourseByCode(code: string): Promise<Course | null> {
   return data ? toCourse(data) : null
 }
 
-export async function saveCourse(course: Omit<Course, 'id' | 'createdAt'>): Promise<Course> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) throw new Error('登入狀態已失效，請重新登入後再試。')
+export async function saveCourse(course: Omit<Course, 'id' | 'createdAt'>, accessToken?: string): Promise<Course> {
+  if (!accessToken) throw new Error('登入狀態已失效，請重新登入後再試。')
 
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), 30000)
   const response = await fetch('/api/courses', {
     method: 'POST',
+    signal: controller.signal,
     headers: {
-      'Authorization': `Bearer ${session.access_token}`,
+      'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -68,6 +70,13 @@ export async function saveCourse(course: Omit<Course, 'id' | 'createdAt'>): Prom
       materialUrl: course.materialUrl,
       courseCode: course.courseCode,
     }),
+  }).catch((e) => {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new Error('建立課程 API 超過 30 秒沒有回應。')
+    }
+    throw e
+  }).finally(() => {
+    window.clearTimeout(timeoutId)
   })
 
   const result = await response.json()

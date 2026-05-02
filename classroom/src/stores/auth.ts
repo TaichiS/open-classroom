@@ -1,11 +1,12 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { User } from '@supabase/supabase-js'
+import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { findProfileById } from '@/lib/db'
 import type { Profile } from '@/types'
 
 export const useAuthStore = defineStore('auth', () => {
+  const session = ref<Session | null>(null)
   const user = ref<User | null>(null)
   const profile = ref<Profile | null>(null)
   const isLoading = ref(true)
@@ -17,17 +18,19 @@ export const useAuthStore = defineStore('auth', () => {
   const needsOnboarding = computed(() => user.value !== null && profile.value === null && !isLoading.value)
 
   async function initialize() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user) {
-      user.value = session.user
-      profile.value = await findProfileById(session.user.id)
+    const { data: { session: currentSession } } = await supabase.auth.getSession()
+    session.value = currentSession
+    if (currentSession?.user) {
+      user.value = currentSession.user
+      profile.value = await findProfileById(currentSession.user.id)
     }
     isLoading.value = false
 
-    supabase.auth.onAuthStateChange(async (_event, session) => {
-      user.value = session?.user ?? null
-      if (session?.user) {
-        profile.value = await findProfileById(session.user.id)
+    supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+      session.value = currentSession
+      user.value = currentSession?.user ?? null
+      if (currentSession?.user) {
+        profile.value = await findProfileById(currentSession.user.id)
       } else {
         profile.value = null
       }
@@ -43,6 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     await supabase.auth.signOut()
+    session.value = null
     user.value = null
     profile.value = null
   }
@@ -56,6 +60,7 @@ export const useAuthStore = defineStore('auth', () => {
   initialize()
 
   return {
+    session,
     user,
     profile,
     isLoading,
