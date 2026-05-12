@@ -61,6 +61,7 @@ const isLoading = ref(true)
 const errorMessage = ref('')
 const isEditingMaterial = ref(false)
 const isSavingMaterial = ref(false)
+const saveMaterialError = ref('')
 const materialLinksInput = ref([
   { title: '', url: '' },
   { title: '', url: '' },
@@ -299,16 +300,22 @@ async function handleSaveMaterialLinks() {
   if (!course.value) return
 
   isSavingMaterial.value = true
+  saveMaterialError.value = ''
+
+  const timeout = new Promise<never>((_, reject) =>
+    window.setTimeout(() => reject(new Error('請求逾時，請確認 Supabase 欄位是否已建立（migration 004）。')), 10000)
+  )
 
   try {
     const materialLinks = materialLinksInput.value
       .filter(l => l.url.trim())
       .map(l => ({ title: l.title.trim(), url: l.url.trim() }))
-    await updateCourse(course.value.id, { materialLinks })
+    await Promise.race([updateCourse(course.value.id, { materialLinks }), timeout])
     course.value = { ...course.value, materialLinks: materialLinks.length > 0 ? materialLinks : undefined }
     isEditingMaterial.value = false
   } catch (e) {
     console.error('Failed to update material links:', e)
+    saveMaterialError.value = e instanceof Error ? e.message : '儲存失敗，請稍後再試。'
   } finally {
     isSavingMaterial.value = false
   }
@@ -399,9 +406,14 @@ function handleLogout() {
           <!-- 編輯模式 -->
           <div v-else class="space-y-2">
             <div v-for="(link, i) in materialLinksInput" :key="i" class="flex gap-2">
-              <Input v-model="link.title" placeholder="標題（選填）" class="w-1/3 shrink-0" />
-              <Input v-model="link.url" type="url" placeholder="https://..." class="flex-1" />
+              <div class="w-2/5">
+                <Input v-model="link.title" placeholder="標題（選填）" />
+              </div>
+              <div class="flex-1">
+                <Input v-model="link.url" type="url" placeholder="https://..." />
+              </div>
             </div>
+            <p v-if="saveMaterialError" class="text-sm text-red-600">{{ saveMaterialError }}</p>
             <div class="flex justify-end gap-2 pt-1">
               <Button variant="outline" :disabled="isSavingMaterial" @click="isEditingMaterial = false">取消</Button>
               <Button :disabled="isSavingMaterial" @click="handleSaveMaterialLinks">
