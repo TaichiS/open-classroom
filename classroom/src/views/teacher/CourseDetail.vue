@@ -302,15 +302,11 @@ async function handleSaveMaterialLinks() {
   isSavingMaterial.value = true
   saveMaterialError.value = ''
 
-  const timeout = new Promise<never>((_, reject) =>
-    window.setTimeout(() => reject(new Error('請求逾時，請確認 Supabase 欄位是否已建立（migration 004）。')), 10000)
-  )
-
   try {
     const materialLinks = materialLinksInput.value
       .filter(l => l.url.trim())
       .map(l => ({ title: l.title.trim(), url: l.url.trim() }))
-    await Promise.race([updateCourse(course.value.id, { materialLinks }), timeout])
+    await updateCourse(course.value.id, { materialLinks })
     course.value = { ...course.value, materialLinks: materialLinks.length > 0 ? materialLinks : undefined }
     isEditingMaterial.value = false
   } catch (e) {

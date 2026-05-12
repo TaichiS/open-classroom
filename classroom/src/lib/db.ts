@@ -95,7 +95,8 @@ export async function updateCourse(id: string, patch: Partial<Pick<Course, 'name
   if (patch.description !== undefined) update.description = patch.description
   if (patch.materialLinks !== undefined) update.material_links = patch.materialLinks.length > 0 ? patch.materialLinks : null
   if (patch.coverImage !== undefined) update.cover_image = patch.coverImage
-  await supabase.from('courses').update(update).eq('id', id)
+  const { error } = await supabase.from('courses').update(update).eq('id', id)
+  if (error) throw new Error(error.message)
 }
 
 // ─── Course Members ───────────────────────────────────────────────────────────
