@@ -11,7 +11,6 @@ export default withErrorHandler(async function handler(req: Request): Promise<Re
     const body = await req.json() as {
       name?: string
       description?: string
-      materialUrl?: string
       courseCode?: string
     }
 
@@ -24,10 +23,6 @@ export default withErrorHandler(async function handler(req: Request): Promise<Re
       description: body.description?.trim() ?? '',
       course_code: body.courseCode.trim(),
       teacher_id: auth.userId,
-    }
-
-    if (body.materialUrl?.trim()) {
-      insert.material_url = body.materialUrl.trim()
     }
 
     const { data, error } = await supabase

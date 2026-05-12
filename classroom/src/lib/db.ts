@@ -1,12 +1,18 @@
 import { supabase } from '@/lib/supabase'
-import type { Profile, Course, CourseMember, Assignment, Submission, DiscussionMessage } from '@/types'
+import type { Profile, Course, MaterialLink, CourseMember, Assignment, Submission, DiscussionMessage } from '@/types'
 
 // ─── Mappers: snake_case → camelCase ─────────────────────────────────────────
 function toProfile(r: any): Profile {
   return { id: r.id, name: r.name, role: r.role, avatar: r.avatar ?? undefined, createdAt: r.created_at }
 }
 function toCourse(r: any): Course {
-  return { id: r.id, name: r.name, description: r.description, materialUrl: r.material_url ?? undefined, coverImage: r.cover_image ?? undefined, courseCode: r.course_code, teacherId: r.teacher_id, createdAt: r.created_at }
+  let materialLinks: MaterialLink[] | undefined
+  if (r.material_links) {
+    materialLinks = r.material_links as MaterialLink[]
+  } else if (r.material_url) {
+    materialLinks = [{ title: '', url: r.material_url }]
+  }
+  return { id: r.id, name: r.name, description: r.description, materialLinks, coverImage: r.cover_image ?? undefined, courseCode: r.course_code, teacherId: r.teacher_id, createdAt: r.created_at }
 }
 function toMember(r: any): CourseMember {
   return { id: r.id, courseId: r.course_id, studentId: r.student_id, joinedAt: r.joined_at, currentAssignmentIndex: r.current_assignment_index }
@@ -67,7 +73,6 @@ export async function saveCourse(course: Omit<Course, 'id' | 'createdAt'>, acces
     body: JSON.stringify({
       name: course.name,
       description: course.description,
-      materialUrl: course.materialUrl,
       courseCode: course.courseCode,
     }),
   }).catch((e) => {
@@ -84,11 +89,11 @@ export async function saveCourse(course: Omit<Course, 'id' | 'createdAt'>, acces
   return toCourse(result)
 }
 
-export async function updateCourse(id: string, patch: Partial<Pick<Course, 'name' | 'description' | 'materialUrl' | 'coverImage'>>): Promise<void> {
+export async function updateCourse(id: string, patch: Partial<Pick<Course, 'name' | 'description' | 'materialLinks' | 'coverImage'>>): Promise<void> {
   const update: Record<string, unknown> = {}
   if (patch.name !== undefined) update.name = patch.name
   if (patch.description !== undefined) update.description = patch.description
-  if (patch.materialUrl !== undefined) update.material_url = patch.materialUrl || null
+  if (patch.materialLinks !== undefined) update.material_links = patch.materialLinks.length > 0 ? patch.materialLinks : null
   if (patch.coverImage !== undefined) update.cover_image = patch.coverImage
   await supabase.from('courses').update(update).eq('id', id)
 }

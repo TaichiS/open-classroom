@@ -52,7 +52,6 @@ const createCourseError = ref('')
 const newCourse = ref({
   name: '',
   description: '',
-  materialUrl: '',
 })
 
 const userName = computed(() => authStore.profile?.name || '老師')
@@ -102,7 +101,6 @@ async function handleCreateCourse() {
       saveCourse({
         name: newCourse.value.name.trim(),
         description: newCourse.value.description.trim(),
-        materialUrl: newCourse.value.materialUrl.trim() || undefined,
         courseCode: generateCourseCode(),
         teacherId: authStore.profile.id,
       }, authStore.session?.access_token),
@@ -113,7 +111,7 @@ async function handleCreateCourse() {
     myCourses.value = [createdCourse, ...myCourses.value.filter(course => course.id !== createdCourse.id)]
     studentCountMap.value[createdCourse.id] = 0
     assignmentCountMap.value[createdCourse.id] = 0
-    newCourse.value = { name: '', description: '', materialUrl: '' }
+    newCourse.value = { name: '', description: '' }
     isCreateDialogOpen.value = false
 
     withTimeout(
@@ -142,8 +140,8 @@ function withTimeout<T>(promise: Promise<T>, message: string, timeoutMs = 15000)
 function getCreateCourseErrorMessage(e: unknown): string {
   const message = e instanceof Error ? e.message : String(e)
 
-  if (message.includes('material_url') || message.includes('schema cache')) {
-    return '建立失敗：Supabase 的 courses 表尚未新增 material_url 欄位。請先執行 migration 003_course_material_url.sql。'
+  if (message.includes('schema cache')) {
+    return '建立失敗：Supabase schema cache 尚未更新，請稍後再試。'
   }
 
   return message || '建立課程失敗，請稍後再試。'
@@ -312,15 +310,6 @@ function handleLogout() {
               v-model="newCourse.description"
               placeholder="輸入課程描述"
               :rows="3"
-            />
-          </div>
-          <div class="space-y-2">
-            <Label for="courseMaterialUrl">教材連結</Label>
-            <Input
-              id="courseMaterialUrl"
-              v-model="newCourse.materialUrl"
-              type="url"
-              placeholder="https://..."
             />
           </div>
           <div v-if="createCourseError" class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

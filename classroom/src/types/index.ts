@@ -10,12 +10,18 @@ export interface Profile {
   createdAt: string
 }
 
+// 教材連結
+export interface MaterialLink {
+  title: string
+  url: string
+}
+
 // 課程類型
 export interface Course {
   id: string
   name: string
   description: string
-  materialUrl?: string
+  materialLinks?: MaterialLink[]
   coverImage?: string
   courseCode: string
   teacherId: string

@@ -168,16 +168,25 @@ function handleLogout() {
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="mb-8">
         <p class="text-slate-600">{{ course.description }}</p>
-        <a
-          v-if="course.materialUrl"
-          :href="course.materialUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="mt-4 inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 break-all"
+        <div
+          v-if="course.materialLinks?.filter(l => l.url).length"
+          class="mt-4 flex flex-wrap gap-2"
         >
-          <ExternalLink class="h-3.5 w-3.5 shrink-0" />
-          教材連結
-        </a>
+          <a
+            v-for="link in course.materialLinks.filter(l => l.url)"
+            :key="link.url"
+            :href="link.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 hover:border-slate-300 hover:shadow-sm transition-all group"
+          >
+            <ExternalLink class="h-4 w-4 text-slate-400 shrink-0 group-hover:text-blue-500 transition-colors" />
+            <div>
+              <p class="text-sm font-medium text-slate-900 leading-tight">{{ link.title || link.url }}</p>
+              <p class="text-xs text-slate-400 leading-tight mt-0.5">教材連結</p>
+            </div>
+          </a>
+        </div>
       </div>
 
       <div class="space-y-4">

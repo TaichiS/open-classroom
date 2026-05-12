@@ -61,7 +61,13 @@ const isLoading = ref(true)
 const errorMessage = ref('')
 const isEditingMaterial = ref(false)
 const isSavingMaterial = ref(false)
-const materialUrlInput = ref('')
+const materialLinksInput = ref([
+  { title: '', url: '' },
+  { title: '', url: '' },
+  { title: '', url: '' },
+])
+
+const activeMaterialLinks = computed(() => course.value?.materialLinks?.filter(l => l.url) ?? [])
 
 // Edit state
 const isEditDialogOpen = ref(false)
@@ -121,7 +127,6 @@ async function loadData() {
     }
 
     course.value = courseData
-    materialUrlInput.value = courseData.materialUrl ?? ''
     const [assignmentData, memberData] = await Promise.all([
       getAssignmentsByCourse(courseId.value),
       getMembersByCourse(courseId.value),
@@ -280,19 +285,30 @@ async function handleDeleteAssignment(assignmentId: string) {
   }
 }
 
-async function handleSaveMaterialUrl() {
+function startEditMaterial() {
+  const existing = course.value?.materialLinks ?? []
+  materialLinksInput.value = [
+    { title: existing[0]?.title ?? '', url: existing[0]?.url ?? '' },
+    { title: existing[1]?.title ?? '', url: existing[1]?.url ?? '' },
+    { title: existing[2]?.title ?? '', url: existing[2]?.url ?? '' },
+  ]
+  isEditingMaterial.value = true
+}
+
+async function handleSaveMaterialLinks() {
   if (!course.value) return
 
   isSavingMaterial.value = true
 
   try {
-    const materialUrl = materialUrlInput.value.trim()
-    await updateCourse(course.value.id, { materialUrl })
-    course.value = { ...course.value, materialUrl: materialUrl || undefined }
-    materialUrlInput.value = materialUrl
+    const materialLinks = materialLinksInput.value
+      .filter(l => l.url.trim())
+      .map(l => ({ title: l.title.trim(), url: l.url.trim() }))
+    await updateCourse(course.value.id, { materialLinks })
+    course.value = { ...course.value, materialLinks: materialLinks.length > 0 ? materialLinks : undefined }
     isEditingMaterial.value = false
   } catch (e) {
-    console.error('Failed to update material URL:', e)
+    console.error('Failed to update material links:', e)
   } finally {
     isSavingMaterial.value = false
   }
@@ -352,39 +368,43 @@ function handleLogout() {
           <Badge variant="secondary">課程碼：{{ course.courseCode }}</Badge>
         </div>
         <div class="mt-4 rounded-lg border border-slate-200 bg-white p-4">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 class="text-sm font-semibold text-slate-900">教材連結</h2>
-              <a
-                v-if="course.materialUrl && !isEditingMaterial"
-                :href="course.materialUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="mt-1 inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 break-all"
-              >
-                <ExternalLink class="h-3.5 w-3.5 shrink-0" />
-                {{ course.materialUrl }}
-              </a>
-              <p v-else-if="!isEditingMaterial" class="mt-1 text-sm text-slate-500">
-                尚未設定教材連結
-              </p>
-            </div>
-            <Button v-if="!isEditingMaterial" variant="outline" size="sm" @click="isEditingMaterial = true">
-              {{ course.materialUrl ? '修改連結' : '新增連結' }}
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold text-slate-900">教材連結</h2>
+            <Button v-if="!isEditingMaterial" variant="outline" size="sm" @click="startEditMaterial">
+              {{ activeMaterialLinks.length > 0 ? '修改連結' : '新增連結' }}
             </Button>
           </div>
-          <div v-if="isEditingMaterial" class="mt-4 flex flex-col gap-2 sm:flex-row">
-            <Input
-              v-model="materialUrlInput"
-              type="url"
-              placeholder="https://..."
-              class="flex-1"
-            />
-            <div class="flex gap-2">
-              <Button variant="outline" :disabled="isSavingMaterial" @click="isEditingMaterial = false">
-                取消
-              </Button>
-              <Button :disabled="isSavingMaterial" @click="handleSaveMaterialUrl">
+
+          <!-- 顯示模式 -->
+          <div v-if="!isEditingMaterial">
+            <div v-if="activeMaterialLinks.length > 0" class="flex flex-wrap gap-2">
+              <a
+                v-for="link in activeMaterialLinks"
+                :key="link.url"
+                :href="link.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 hover:border-slate-300 hover:shadow-sm transition-all group"
+              >
+                <ExternalLink class="h-4 w-4 text-slate-400 shrink-0 group-hover:text-blue-500 transition-colors" />
+                <div>
+                  <p class="text-sm font-medium text-slate-900 leading-tight">{{ link.title || link.url }}</p>
+                  <p class="text-xs text-slate-400 leading-tight mt-0.5">教材連結</p>
+                </div>
+              </a>
+            </div>
+            <p v-else class="text-sm text-slate-500">尚未設定教材連結</p>
+          </div>
+
+          <!-- 編輯模式 -->
+          <div v-else class="space-y-2">
+            <div v-for="(link, i) in materialLinksInput" :key="i" class="flex gap-2">
+              <Input v-model="link.title" placeholder="標題（選填）" class="w-1/3 shrink-0" />
+              <Input v-model="link.url" type="url" placeholder="https://..." class="flex-1" />
+            </div>
+            <div class="flex justify-end gap-2 pt-1">
+              <Button variant="outline" :disabled="isSavingMaterial" @click="isEditingMaterial = false">取消</Button>
+              <Button :disabled="isSavingMaterial" @click="handleSaveMaterialLinks">
                 <Loader2 v-if="isSavingMaterial" class="mr-2 h-4 w-4 animate-spin" />
                 保存
               </Button>
