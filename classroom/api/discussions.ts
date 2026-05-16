@@ -25,19 +25,26 @@ export default withErrorHandler(async function handler(req: Request): Promise<Re
 
     const { data: messages, error } = await supabase
       .from('discussion_messages')
-      .select('*')
+      .select('*, profiles(name, role)')
       .eq('assignment_id', assignmentId)
       .order('created_at', { ascending: true })
 
     if (error) return errorResponse(error.message, 500)
+
+    const normalize = (m: any) => ({
+      ...m,
+      user_name: m.user_name || m.profiles?.name || '使用者',
+      user_role: m.user_role || m.profiles?.role || 'student',
+      profiles: undefined,
+    })
 
     // 組裝巢狀結構：頂層訊息 + replies
     const topLevel = messages.filter((m: { parent_id: string | null }) => !m.parent_id)
     const replies = messages.filter((m: { parent_id: string | null }) => !!m.parent_id)
 
     const nested = topLevel.map((parent: Record<string, unknown>) => ({
-      ...parent,
-      replies: replies.filter((r: { parent_id: string }) => r.parent_id === parent.id),
+      ...normalize(parent),
+      replies: replies.filter((r: { parent_id: string }) => r.parent_id === parent.id).map(normalize),
     }))
 
     return jsonResponse(nested)
