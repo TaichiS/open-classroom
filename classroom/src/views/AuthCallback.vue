@@ -12,12 +12,22 @@ onMounted(() => {
     return
   }
 
+  // 最多等 10 秒；逾時也強制走 redirect，避免 spinner 永遠轉
+  let settled = false
+  const finish = () => {
+    if (settled) return
+    settled = true
+    unwatch()
+    window.clearTimeout(timeoutId)
+    redirect()
+  }
   const unwatch = authStore.$subscribe((_mutation, state) => {
-    if (!state.isLoading) {
-      unwatch()
-      redirect()
-    }
+    if (!state.isLoading) finish()
   })
+  const timeoutId = window.setTimeout(() => {
+    console.warn('Auth callback wait timed out after 10s; redirecting anyway.')
+    finish()
+  }, 10000)
 })
 
 function redirect() {

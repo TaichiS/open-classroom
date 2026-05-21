@@ -18,23 +18,39 @@ export const useAuthStore = defineStore('auth', () => {
   const needsOnboarding = computed(() => user.value !== null && profile.value === null && !isLoading.value)
 
   async function initialize() {
-    const { data: { session: currentSession } } = await supabase.auth.getSession()
-    session.value = currentSession
-    if (currentSession?.user) {
-      user.value = currentSession.user
-      profile.value = await findProfileById(currentSession.user.id)
-    }
-    isLoading.value = false
-
+    // 先註冊監聽器，避免初始化過程中漏接 auth 事件
     supabase.auth.onAuthStateChange(async (_event, currentSession) => {
       session.value = currentSession
       user.value = currentSession?.user ?? null
       if (currentSession?.user) {
-        profile.value = await findProfileById(currentSession.user.id)
+        try {
+          profile.value = await findProfileById(currentSession.user.id)
+        } catch (e) {
+          console.error('Failed to refresh profile on auth state change:', e)
+        }
       } else {
         profile.value = null
       }
     })
+
+    try {
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      session.value = currentSession
+      if (currentSession?.user) {
+        user.value = currentSession.user
+        try {
+          profile.value = await findProfileById(currentSession.user.id)
+        } catch (e) {
+          console.error('Failed to load profile during init:', e)
+          profile.value = null
+        }
+      }
+    } catch (e) {
+      console.error('Auth initialization failed:', e)
+    } finally {
+      // 不論成功失敗，一定要結束 loading 狀態，避免 router guard 永遠卡住
+      isLoading.value = false
+    }
   }
 
   async function loginWithGoogle() {

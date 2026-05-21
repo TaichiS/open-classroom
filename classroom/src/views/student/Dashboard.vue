@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Badge } from '@/components/ui/Badge'
 import { Progress } from '@/components/ui/Progress'
 import { Label } from '@/components/ui/Label'
+import { LoadErrorBanner } from '@/components/ui/LoadErrorBanner'
 import {
   Dialog,
   DialogHeader,
@@ -54,6 +55,8 @@ const courseCode = ref('')
 const isJoining = ref(false)
 const joinError = ref('')
 const joinSuccess = ref('')
+const loadError = ref<string | null>(null)
+const isReloading = ref(false)
 
 const userName = computed(() => authStore.profile?.name || '學生')
 
@@ -63,12 +66,21 @@ onMounted(async () => {
 
 async function loadCourses() {
   if (!authStore.profile) return
-  const members = await getMembersByStudent(authStore.profile.id)
-  const courses = await Promise.all(
-    members.map((m: CourseMember) => findCourseById(m.courseId))
-  )
-  myCourses.value = courses.filter((c): c is Course => c !== null)
-  await loadCourseProgress(members)
+  isReloading.value = true
+  loadError.value = null
+  try {
+    const members = await getMembersByStudent(authStore.profile.id)
+    const courses = await Promise.all(
+      members.map((m: CourseMember) => findCourseById(m.courseId))
+    )
+    myCourses.value = courses.filter((c): c is Course => c !== null)
+    await loadCourseProgress(members)
+  } catch (e) {
+    console.error('Failed to load student dashboard:', e)
+    loadError.value = e instanceof Error ? e.message : '載入課程清單失敗'
+  } finally {
+    isReloading.value = false
+  }
 }
 
 async function loadCourseProgress(members: CourseMember[]) {
@@ -270,6 +282,14 @@ function handleLogout() {
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <LoadErrorBanner
+        v-if="loadError"
+        :message="loadError"
+        :is-retrying="isReloading"
+        class="mb-6"
+        @retry="loadCourses"
+      />
+
       <!-- Join Course Section -->
       <Card class="mb-8">
         <CardHeader>

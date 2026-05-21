@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
+import { LoadErrorBanner } from '@/components/ui/LoadErrorBanner'
 import {
   ArrowLeft,
   Trophy,
@@ -26,6 +27,8 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const showcaseItems = ref<ShowcaseItem[]>([])
+const loadError = ref<string | null>(null)
+const isReloading = ref(false)
 
 onMounted(async () => {
   await loadShowcaseItems()
@@ -33,46 +36,54 @@ onMounted(async () => {
 
 async function loadShowcaseItems() {
   if (!authStore.profile) return
+  isReloading.value = true
+  loadError.value = null
+  try {
+    const members = await getMembersByStudent(authStore.profile.id)
+    const items: ShowcaseItem[] = []
 
-  const members = await getMembersByStudent(authStore.profile.id)
-  const items: ShowcaseItem[] = []
+    for (const member of members) {
+      const course = await findCourseById(member.courseId)
+      if (!course) continue
 
-  for (const member of members) {
-    const course = await findCourseById(member.courseId)
-    if (!course) continue
+      const assignments = await getAssignmentsByCourse(member.courseId)
 
-    const assignments = await getAssignmentsByCourse(member.courseId)
+      for (const assignment of assignments) {
+        if (!assignment.showcaseEnabled) continue
 
-    for (const assignment of assignments) {
-      if (!assignment.showcaseEnabled) continue
+        const submissions = await getSubmissionsByAssignment(assignment.id)
 
-      const submissions = await getSubmissionsByAssignment(assignment.id)
+        for (const submission of submissions) {
+          if (!submission.showcaseApproved) continue
 
-      for (const submission of submissions) {
-        if (!submission.showcaseApproved) continue
+          const studentProfile = await findProfileById(submission.studentId)
+          if (!studentProfile) continue
 
-        const studentProfile = await findProfileById(submission.studentId)
-        if (!studentProfile) continue
-
-        items.push({
-          submission: {
-            ...submission,
-            studentName: studentProfile.name,
-            studentEmail: '',
-          },
-          assignment,
-          course,
-        })
+          items.push({
+            submission: {
+              ...submission,
+              studentName: studentProfile.name,
+              studentEmail: '',
+            },
+            assignment,
+            course,
+          })
+        }
       }
     }
-  }
 
-  // Sort by submission date, newest first
-  showcaseItems.value = items.sort((a, b) => {
-    const dateA = a.submission.submittedAt ? new Date(a.submission.submittedAt).getTime() : 0
-    const dateB = b.submission.submittedAt ? new Date(b.submission.submittedAt).getTime() : 0
-    return dateB - dateA
-  })
+    // Sort by submission date, newest first
+    showcaseItems.value = items.sort((a, b) => {
+      const dateA = a.submission.submittedAt ? new Date(a.submission.submittedAt).getTime() : 0
+      const dateB = b.submission.submittedAt ? new Date(b.submission.submittedAt).getTime() : 0
+      return dateB - dateA
+    })
+  } catch (e) {
+    console.error('Failed to load showcase items:', e)
+    loadError.value = e instanceof Error ? e.message : '載入作業展示失敗'
+  } finally {
+    isReloading.value = false
+  }
 }
 
 function getSubmitTypeIcon(type: string) {
@@ -117,6 +128,13 @@ function formatDate(dateStr: string): string {
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <LoadErrorBanner
+        v-if="loadError"
+        :message="loadError"
+        :is-retrying="isReloading"
+        class="mb-6"
+        @retry="loadShowcaseItems"
+      />
       <div class="mb-8 text-center">
         <h1 class="text-3xl font-bold mb-2">優秀作業展示</h1>
         <p class="text-slate-600">這裡展示了各課程的優秀作業，供大家學習參考</p>

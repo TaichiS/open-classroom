@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { LoadErrorBanner } from '@/components/ui/LoadErrorBanner'
 import {
   ArrowLeft,
   BookOpen,
@@ -41,6 +42,8 @@ const assignments = ref<AssignmentWithStatus[]>([])
 const member = ref<CourseMember | null>(null)
 const discussionCountMap = ref<Record<string, number>>({})
 const isProfileMenuOpen = ref(false)
+const loadError = ref<string | null>(null)
+const isReloading = ref(false)
 
 const courseId = computed(() => route.params.id as string)
 
@@ -64,33 +67,41 @@ onMounted(async () => {
 
 async function loadData() {
   if (!authStore.profile) return
+  isReloading.value = true
+  loadError.value = null
+  try {
+    const courseData = await findCourseById(courseId.value)
+    if (!courseData) {
+      router.push('/')
+      return
+    }
+    course.value = courseData
 
-  const courseData = await findCourseById(courseId.value)
-  if (!courseData) {
-    router.push('/')
-    return
+    member.value = await findMember(courseId.value, authStore.profile.id)
+
+    const allAssignments = await getAssignmentsByCourse(courseId.value)
+
+    discussionCountMap.value = await getDiscussionCountsByAssignments(allAssignments.map(a => a.id))
+
+    assignments.value = await Promise.all(
+      allAssignments.map(async (assignment, index) => {
+        const submission = await findSubmission(assignment.id, authStore.profile!.id)
+        const isReleased = new Date(assignment.releaseDate) <= new Date()
+        const isUnlocked = index === 0 || (member.value ? index <= member.value.currentAssignmentIndex : false)
+
+        return {
+          ...assignment,
+          submission: submission ?? undefined,
+          isUnlocked: isReleased && isUnlocked,
+        }
+      })
+    )
+  } catch (e) {
+    console.error('Failed to load course detail:', e)
+    loadError.value = e instanceof Error ? e.message : '載入課程資料失敗'
+  } finally {
+    isReloading.value = false
   }
-  course.value = courseData
-
-  member.value = await findMember(courseId.value, authStore.profile.id)
-
-  const allAssignments = await getAssignmentsByCourse(courseId.value)
-
-  discussionCountMap.value = await getDiscussionCountsByAssignments(allAssignments.map(a => a.id))
-
-  assignments.value = await Promise.all(
-    allAssignments.map(async (assignment, index) => {
-      const submission = await findSubmission(assignment.id, authStore.profile!.id)
-      const isReleased = new Date(assignment.releaseDate) <= new Date()
-      const isUnlocked = index === 0 || (member.value ? index <= member.value.currentAssignmentIndex : false)
-
-      return {
-        ...assignment,
-        submission: submission ?? undefined,
-        isUnlocked: isReleased && isUnlocked,
-      }
-    })
-  )
 }
 
 function getAssignmentStatusBadge(assignment: AssignmentWithStatus) {
@@ -132,7 +143,12 @@ function handleLogout() {
 </script>
 
 <template>
-  <div v-if="course" class="min-h-screen bg-slate-50">
+  <div v-if="!course && loadError" class="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+      <LoadErrorBanner :message="loadError" :is-retrying="isReloading" @retry="loadData" />
+    </div>
+  </div>
+  <div v-else-if="course" class="min-h-screen bg-slate-50">
     <!-- Header -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -166,6 +182,13 @@ function handleLogout() {
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <LoadErrorBanner
+        v-if="loadError"
+        :message="loadError"
+        :is-retrying="isReloading"
+        class="mb-6"
+        @retry="loadData"
+      />
       <div class="mb-8">
         <p class="text-slate-600">{{ course.description }}</p>
         <div

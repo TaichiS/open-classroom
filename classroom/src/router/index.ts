@@ -34,15 +34,24 @@ const router = createRouter({
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
 
-  // Wait for Supabase auth to initialize
+  // Wait for Supabase auth to initialize（最多 10 秒，逾時就放行讓守衛繼續判斷）
   if (authStore.isLoading) {
     await new Promise<void>(resolve => {
+      let settled = false
+      const finish = () => {
+        if (settled) return
+        settled = true
+        unwatch()
+        window.clearTimeout(timeoutId)
+        resolve()
+      }
       const unwatch = authStore.$subscribe((_mutation, state) => {
-        if (!state.isLoading) {
-          unwatch()
-          resolve()
-        }
+        if (!state.isLoading) finish()
       })
+      const timeoutId = window.setTimeout(() => {
+        console.warn('Auth initialization timed out after 10s; proceeding without it.')
+        finish()
+      }, 10000)
     })
   }
 

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer.vue'
+import { LoadErrorBanner } from '@/components/ui/LoadErrorBanner'
 import {
   ArrowLeft,
   CheckCircle2,
@@ -39,6 +40,8 @@ const submission = ref<Submission | null>(null)
 const submitData = ref('')
 const isSubmitting = ref(false)
 const message = ref('')
+const loadError = ref<string | null>(null)
+const isReloading = ref(false)
 
 const assignmentId = computed(() => route.params.id as string)
 const isCompleted = computed(() => submission.value?.status === 'completed')
@@ -75,28 +78,36 @@ onMounted(async () => {
 
 async function loadData() {
   if (!authStore.profile) return
-
-  const assignmentData = await findAssignmentById(assignmentId.value)
-  if (!assignmentData) {
-    router.push('/')
-    return
-  }
-
-  const courseData = await findCourseById(assignmentData.courseId)
-  if (!courseData) {
-    router.push('/')
-    return
-  }
-
-  assignment.value = assignmentData
-  course.value = courseData
-
-  const existingSubmission = await findSubmission(assignmentId.value, authStore.profile.id)
-  if (existingSubmission) {
-    submission.value = existingSubmission
-    if (existingSubmission.submitData) {
-      submitData.value = existingSubmission.submitData
+  isReloading.value = true
+  loadError.value = null
+  try {
+    const assignmentData = await findAssignmentById(assignmentId.value)
+    if (!assignmentData) {
+      router.push('/')
+      return
     }
+
+    const courseData = await findCourseById(assignmentData.courseId)
+    if (!courseData) {
+      router.push('/')
+      return
+    }
+
+    assignment.value = assignmentData
+    course.value = courseData
+
+    const existingSubmission = await findSubmission(assignmentId.value, authStore.profile.id)
+    if (existingSubmission) {
+      submission.value = existingSubmission
+      if (existingSubmission.submitData) {
+        submitData.value = existingSubmission.submitData
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load assignment submit:', e)
+    loadError.value = e instanceof Error ? e.message : '載入作業資料失敗'
+  } finally {
+    isReloading.value = false
   }
 }
 
@@ -150,7 +161,12 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div v-if="assignment && course" class="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_48%,#f8fafc_100%)] text-slate-900">
+  <div v-if="!assignment && loadError" class="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+      <LoadErrorBanner :message="loadError" :is-retrying="isReloading" @retry="loadData" />
+    </div>
+  </div>
+  <div v-else-if="assignment && course" class="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_48%,#f8fafc_100%)] text-slate-900">
     <!-- Header -->
     <header class="sticky top-0 z-10 border-b border-white/70 bg-white/80 backdrop-blur-xl">
       <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">

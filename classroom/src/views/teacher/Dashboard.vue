@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/Textarea'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Label } from '@/components/ui/Label'
+import { LoadErrorBanner } from '@/components/ui/LoadErrorBanner'
 import {
   Dialog,
   DialogHeader,
@@ -48,6 +49,8 @@ const assignmentCountMap = ref<Record<string, number>>({})
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 const createCourseError = ref('')
+const loadError = ref<string | null>(null)
+const isReloading = ref(false)
 
 const newCourse = ref({
   name: '',
@@ -62,8 +65,17 @@ onMounted(async () => {
 
 async function loadCourses() {
   if (!authStore.profile) return
-  myCourses.value = await getCoursesByTeacher(authStore.profile.id)
-  await loadCourseCounts()
+  isReloading.value = true
+  loadError.value = null
+  try {
+    myCourses.value = await getCoursesByTeacher(authStore.profile.id)
+    await loadCourseCounts()
+  } catch (e) {
+    console.error('Failed to load teacher dashboard:', e)
+    loadError.value = e instanceof Error ? e.message : '載入課程清單失敗'
+  } finally {
+    isReloading.value = false
+  }
 }
 
 async function loadCourseCounts() {
@@ -241,6 +253,14 @@ function handleLogout() {
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <LoadErrorBanner
+        v-if="loadError"
+        :message="loadError"
+        :is-retrying="isReloading"
+        class="mb-6"
+        @retry="loadCourses"
+      />
+
       <!-- Create Course Button -->
       <div class="mb-8">
         <Button @click="isCreateDialogOpen = true">

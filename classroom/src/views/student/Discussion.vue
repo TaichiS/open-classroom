@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Textarea'
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { LoadErrorBanner } from '@/components/ui/LoadErrorBanner'
 import {
   ArrowLeft,
   MessageCircle,
@@ -34,6 +35,8 @@ const course = ref<Course | null>(null)
 const messages = ref<DiscussionMessage[]>([])
 const newMessage = ref('')
 const replyTo = ref<DiscussionMessage | null>(null)
+const loadError = ref<string | null>(null)
+const isReloading = ref(false)
 
 const assignmentId = computed(() => route.params.id as string)
 const isTeacher = computed(() => authStore.profile?.role === 'teacher')
@@ -54,40 +57,48 @@ onMounted(async () => {
 
 async function loadData() {
   if (!authStore.profile) return
-
-  const assignmentData = await findAssignmentById(assignmentId.value)
-  if (!assignmentData) {
-    router.push(isTeacher.value ? '/teacher' : '/')
-    return
-  }
-
-  const courseData = await findCourseById(assignmentData.courseId)
-  if (!courseData) {
-    router.push(isTeacher.value ? '/teacher' : '/')
-    return
-  }
-
-  if (isTeacher.value) {
-    if (courseData.teacherId !== authStore.profile.id) {
-      router.push('/teacher')
+  isReloading.value = true
+  loadError.value = null
+  try {
+    const assignmentData = await findAssignmentById(assignmentId.value)
+    if (!assignmentData) {
+      router.push(isTeacher.value ? '/teacher' : '/')
       return
     }
-  } else {
-    // Check if student has unlocked this assignment
-    const member = await findMember(courseData.id, authStore.profile.id)
-    const assignments = await getAssignmentsByCourse(courseData.id)
-    const currentIndex = assignments.findIndex(a => a.id === assignmentData.id)
 
-    if (currentIndex === -1 || !member || currentIndex > member.currentAssignmentIndex) {
-      router.push(`/course/${courseData.id}`)
+    const courseData = await findCourseById(assignmentData.courseId)
+    if (!courseData) {
+      router.push(isTeacher.value ? '/teacher' : '/')
       return
     }
-  }
 
-  assignment.value = assignmentData
-  course.value = courseData
-  await loadMessages()
-  subscribeRealtime(assignmentId.value)
+    if (isTeacher.value) {
+      if (courseData.teacherId !== authStore.profile.id) {
+        router.push('/teacher')
+        return
+      }
+    } else {
+      // Check if student has unlocked this assignment
+      const member = await findMember(courseData.id, authStore.profile.id)
+      const assignments = await getAssignmentsByCourse(courseData.id)
+      const currentIndex = assignments.findIndex(a => a.id === assignmentData.id)
+
+      if (currentIndex === -1 || !member || currentIndex > member.currentAssignmentIndex) {
+        router.push(`/course/${courseData.id}`)
+        return
+      }
+    }
+
+    assignment.value = assignmentData
+    course.value = courseData
+    await loadMessages()
+    subscribeRealtime(assignmentId.value)
+  } catch (e) {
+    console.error('Failed to load discussion:', e)
+    loadError.value = e instanceof Error ? e.message : '載入討論資料失敗'
+  } finally {
+    isReloading.value = false
+  }
 }
 
 async function loadMessages() {
@@ -154,7 +165,12 @@ function formatDate(dateStr: string): string {
 </script>
 
 <template>
-  <div v-if="assignment && course" class="min-h-screen bg-slate-50">
+  <div v-if="!assignment && loadError" class="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+      <LoadErrorBanner :message="loadError" :is-retrying="isReloading" @retry="loadData" />
+    </div>
+  </div>
+  <div v-else-if="assignment && course" class="min-h-screen bg-slate-50">
     <!-- Header -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
       <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">

@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/Textarea'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Label } from '@/components/ui/Label'
+import { LoadErrorBanner } from '@/components/ui/LoadErrorBanner'
 import {
   Dialog,
   DialogHeader,
@@ -193,9 +194,7 @@ function formatDate(dateStr: string): string {
     </main>
 
     <main v-else-if="errorMessage" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      <div class="rounded-lg border border-red-200 bg-red-50 p-6 text-red-700">
-        {{ errorMessage }}
-      </div>
+      <LoadErrorBanner :message="errorMessage" :is-retrying="isLoading" @retry="loadData" />
     </main>
 
     <!-- Main Content -->
