@@ -5,9 +5,57 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>作業管理系統</title>
+    <style>
+    #initial-splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #f8fafc;
+      font-family: 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+      z-index: 9999;
+    }
+    #initial-splash .splash-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #0f172a;
+      margin-bottom: 2rem;
+    }
+    #initial-splash .splash-track {
+      width: 16rem;
+      height: 4px;
+      background: #e2e8f0;
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+    #initial-splash .splash-bar {
+      height: 100%;
+      background: #2563eb;
+      border-radius: 9999px;
+      animation: splash-slide 1.4s ease-in-out infinite;
+    }
+    #initial-splash .splash-text {
+      margin-top: 1rem;
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+    @keyframes splash-slide {
+      0% { transform: translateX(-100%); width: 30%; }
+      50% { width: 60%; }
+      100% { transform: translateX(350%); width: 30%; }
+    }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div id="initial-splash">
+        <div class="splash-title">作業管理系統</div>
+        <div class="splash-track"><div class="splash-bar"></div></div>
+        <div class="splash-text">載入中...</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

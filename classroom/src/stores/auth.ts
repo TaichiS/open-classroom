@@ -19,15 +19,20 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function initialize() {
     // 先註冊監聽器，避免初始化過程中漏接 auth 事件
-    supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+    // 注意：callback 內不能直接 await Supabase 方法，否則會與 auth lock 死鎖（造成 10 秒卡頓）
+    // 必須用 setTimeout(..., 0) 把 supabase 呼叫推出 callback 同步區
+    supabase.auth.onAuthStateChange((_event, currentSession) => {
       session.value = currentSession
       user.value = currentSession?.user ?? null
-      if (currentSession?.user) {
-        try {
-          profile.value = await findProfileById(currentSession.user.id)
-        } catch (e) {
-          console.error('Failed to refresh profile on auth state change:', e)
-        }
+      const userId = currentSession?.user?.id
+      if (userId) {
+        setTimeout(async () => {
+          try {
+            profile.value = await findProfileById(userId)
+          } catch (e) {
+            console.error('Failed to refresh profile on auth state change:', e)
+          }
+        }, 0)
       } else {
         profile.value = null
       }
