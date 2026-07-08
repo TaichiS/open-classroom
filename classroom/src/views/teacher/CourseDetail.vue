@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import MarkdownEditor from '@/components/ui/MarkdownEditor.vue'
+import MarkdownRenderer from '@/components/ui/MarkdownRenderer.vue'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Label } from '@/components/ui/Label'
@@ -70,6 +71,10 @@ const materialLinksInput = ref([
 ])
 
 const activeMaterialLinks = computed(() => course.value?.materialLinks?.filter(l => l.url) ?? [])
+
+// Preview state（以學生視角查看作業內文）
+const isPreviewDialogOpen = ref(false)
+const previewAssignment = ref<Assignment | null>(null)
 
 // Edit state
 const isEditDialogOpen = ref(false)
@@ -236,6 +241,11 @@ async function handleCreateAssignment() {
   } finally {
     isCreating.value = false
   }
+}
+
+function openPreviewDialog(assignment: Assignment) {
+  previewAssignment.value = assignment
+  isPreviewDialogOpen.value = true
 }
 
 function openEditDialog(assignment: Assignment) {
@@ -512,6 +522,15 @@ function handleLogout() {
                   </Button>
                 </router-link>
                 <Button
+                  variant="outline"
+                  size="sm"
+                  class="cursor-pointer"
+                  @click="openPreviewDialog(assignment)"
+                >
+                  <BookOpen class="h-4 w-4 mr-1.5" />
+                  預覽
+                </Button>
+                <Button
                   variant="ghost"
                   size="sm"
                   class="cursor-pointer"
@@ -623,6 +642,22 @@ function handleLogout() {
               {{ isCreating ? '建立中...' : '建立' }}
             </Button>
           </div>
+        </div>
+      </div>
+    </Dialog>
+
+    <!-- Preview Assignment Dialog（學生視角）-->
+    <Dialog v-model:open="isPreviewDialogOpen" class="max-w-3xl max-h-[85vh] overflow-y-auto">
+      <div class="space-y-4">
+        <DialogHeader>
+          <DialogTitle>{{ previewAssignment?.title }}</DialogTitle>
+          <p class="text-sm text-slate-500 mt-1">這是學生會看到的作業內文</p>
+        </DialogHeader>
+        <div v-if="previewAssignment?.description" class="assignment-document">
+          <MarkdownRenderer :content="previewAssignment.description" />
+        </div>
+        <div v-else class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-slate-500">
+          這份作業尚未提供詳細內容。
         </div>
       </div>
     </Dialog>

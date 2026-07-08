@@ -223,8 +223,8 @@ function formatDate(dateStr: string): string {
             :key="submission.id"
           >
             <CardContent class="!p-6">
-              <div class="flex items-start justify-between">
-                <div class="flex-1">
+              <div class="flex items-start justify-between gap-4">
+                <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 mb-2">
                     <h3 class="font-semibold">{{ submission.student?.name || '未知學生' }}</h3>
                     <Badge :variant="submission.status === 'completed' ? 'success' : 'default'">
@@ -239,7 +239,7 @@ function formatDate(dateStr: string): string {
                     提交時間：{{ formatDate(submission.submittedAt) }}
                   </p>
                   <div v-if="submission.submitData" class="bg-slate-50 rounded-lg p-3 mb-3">
-                    <p class="text-sm text-slate-700">{{ submission.submitData }}</p>
+                    <p class="text-sm text-slate-700 whitespace-pre-wrap break-words">{{ submission.submitData }}</p>
                     <a
                       v-if="assignment.submitType === 'link' && submission.submitData.startsWith('http')"
                       :href="submission.submitData"
@@ -258,7 +258,7 @@ function formatDate(dateStr: string): string {
                     </p>
                   </div>
                 </div>
-                <div class="flex flex-col gap-2 ml-4">
+                <div class="flex flex-col gap-2 shrink-0">
                   <Button variant="outline" size="sm" @click="openFeedbackDialog(submission)">
                     {{ submission.feedback ? '修改評語' : '添加評語' }}
                   </Button>
