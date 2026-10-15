@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:attachments": "node scripts/test-attachments.mjs",
+    "check:api": "tsc -p api/tsconfig.json --noEmit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",

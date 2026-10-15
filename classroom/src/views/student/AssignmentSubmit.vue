@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
+import AssignmentAttachments from '@/components/AssignmentAttachments.vue'
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer.vue'
 import { LoadErrorBanner } from '@/components/ui/LoadErrorBanner'
 import {
@@ -219,6 +220,7 @@ async function handleSubmit() {
             <div v-else class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-slate-500">
               這份作業尚未提供詳細內容。
             </div>
+            <AssignmentAttachments :assignment-id="assignment.id" class="mt-6" />
           </article>
         </div>
       </section>

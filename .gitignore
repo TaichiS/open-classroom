@@ -49,3 +49,9 @@ system-design.md
 
 # Git worktrees
 .worktrees/
+
+# Assignment attachment setup and user guide
+!classroom/docs/
+classroom/docs/*
+!classroom/docs/assignment-attachments.md
+!classroom/docs/assignment-attachments-setup.sql

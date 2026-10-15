@@ -5,10 +5,12 @@ import { X } from 'lucide-vue-next'
 interface Props {
   open?: boolean
   class?: string
+  dismissible?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   open: false,
+  dismissible: true,
 })
 
 const emit = defineEmits<{
@@ -16,7 +18,7 @@ const emit = defineEmits<{
 }>()
 
 function close() {
-  emit('update:open', false)
+  if (props.dismissible) emit('update:open', false)
 }
 
 const backdropClasses = computed(() => {
@@ -45,6 +47,7 @@ const contentClasses = computed(() => {
       <button
         class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:pointer-events-none"
         @click="close"
+        :disabled="!dismissible"
       >
         <X class="h-4 w-4" />
         <span class="sr-only">關閉</span>

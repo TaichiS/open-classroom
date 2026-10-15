@@ -13,6 +13,7 @@ export const routes: Record<string, string> = {
   '/discussions': './discussions.ts',
 
   // 作業相關
+  '/attachments': './attachments.ts',
   '/assignments': './assignments/index.ts',
   '/assignments/batch': './assignments/batch.ts',
 

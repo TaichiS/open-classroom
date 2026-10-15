@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import AssignmentAttachments from '@/components/AssignmentAttachments.vue'
+import { uploadAttachment, ATTACHMENT_ACCEPT, MAX_ATTACHMENT_SIZE } from '@/lib/attachments'
 import MarkdownEditor from '@/components/ui/MarkdownEditor.vue'
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer.vue'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -58,6 +60,19 @@ const members = ref<CourseMember[]>([])
 const memberNameMap = ref<Record<string, string>>({})
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
+const newAttachmentFiles = ref<File[]>([])
+const createAttachmentError = ref('')
+const attachmentNotice = ref('')
+const attachmentProgress = ref('')
+watch(isCreateDialogOpen, open => {
+  if (!open) {
+    newAttachmentFiles.value = []
+    createAttachmentError.value = ''
+  }
+})
+function selectNewAttachments(event: Event) {
+  newAttachmentFiles.value = Array.from((event.target as HTMLInputElement).files ?? [])
+}
 const discussionCountMap = ref<Record<string, number>>({})
 const isLoading = ref(true)
 const errorMessage = ref('')
@@ -80,6 +95,7 @@ const previewAssignment = ref<Assignment | null>(null)
 const isEditDialogOpen = ref(false)
 const editingAssignment = ref<Assignment | null>(null)
 const isEditing = ref(false)
+const attachmentsBusy = ref(false)
 const editForm = ref({
   title: '',
   description: '',
@@ -196,6 +212,9 @@ function toLocalDatetimeInput(iso: string): string {
 async function handleCreateAssignment() {
   if (!newAssignment.value.title.trim() || !course.value) return
 
+  createAttachmentError.value = ''
+  const invalid = newAttachmentFiles.value.find(f => f.size < 1 || f.size > MAX_ATTACHMENT_SIZE)
+  if (invalid) { createAttachmentError.value = `${invalid.name}：檔案須介於 1 byte 與 25 MB 之間`; return }
   isCreating.value = true
 
   try {
@@ -220,6 +239,15 @@ async function handleCreateAssignment() {
       showcaseRequireApproval: newAssignment.value.showcaseRequireApproval,
     })
 
+    const attachmentErrors: string[] = []
+    for (const [index, file] of newAttachmentFiles.value.entries()) {
+      attachmentProgress.value = `上傳附件 ${index + 1}/${newAttachmentFiles.value.length}：${file.name}`
+      try { await uploadAttachment(created.id, file) }
+      catch (e) { attachmentErrors.push(e instanceof Error ? e.message : `${file.name} 上傳失敗`) }
+    }
+    newAttachmentFiles.value = []
+    attachmentProgress.value = ''
+
     // Notify enrolled students via email
     supabase.functions.invoke('send-email', {
       body: { assignmentId: created.id, type: 'assignment_released' }
@@ -236,9 +264,14 @@ async function handleCreateAssignment() {
     }
     isCreateDialogOpen.value = false
     await loadData()
+    if (attachmentErrors.length) {
+      openEditDialog(created)
+      attachmentNotice.value = `作業已建立；以下附件需重試，請勿重複建立作業：\n${attachmentErrors.join('\n')}`
+    }
   } catch (e) {
-    console.error('Failed to create assignment:', e)
+    createAttachmentError.value = e instanceof Error ? e.message : '建立作業失敗'
   } finally {
+    attachmentProgress.value = ''
     isCreating.value = false
   }
 }
@@ -249,6 +282,7 @@ function openPreviewDialog(assignment: Assignment) {
 }
 
 function openEditDialog(assignment: Assignment) {
+  attachmentNotice.value = ''
   editingAssignment.value = assignment
   editForm.value = {
     title: assignment.title,
@@ -292,8 +326,12 @@ async function handleEditAssignment() {
 
 async function handleDeleteAssignment(assignmentId: string) {
   if (confirm('確定要刪除此作業嗎？此操作無法復原。')) {
-    await deleteAssignment(assignmentId)
-    await loadData()
+    try {
+      await deleteAssignment(assignmentId)
+      await loadData()
+    } catch (e) {
+      errorMessage.value = e instanceof Error ? e.message : '刪除作業失敗'
+    }
   }
 }
 
@@ -554,7 +592,7 @@ function handleLogout() {
     </main>
 
     <!-- Create Assignment Dialog -->
-    <Dialog v-model:open="isCreateDialogOpen" class="max-w-5xl max-h-[90vh] overflow-y-auto">
+    <Dialog v-model:open="isCreateDialogOpen" :dismissible="!isCreating" class="max-w-5xl max-h-[90vh] overflow-y-auto">
       <div class="space-y-4">
         <DialogHeader>
           <DialogTitle>新增作業</DialogTitle>
@@ -575,6 +613,14 @@ function handleLogout() {
               placeholder="支援 Markdown 格式，例如 **粗體**、`程式碼`、清單等"
               minHeight="320px"
             />
+          </div>
+          <div class="space-y-2">
+            <Label for="new-attachments">作業附件（選填）</Label>
+            <input id="new-attachments" type="file" multiple :accept="ATTACHMENT_ACCEPT" :disabled="isCreating"
+              class="block w-full text-sm text-slate-600" @change="selectNewAttachments" />
+            <p class="text-xs text-slate-500">可選擇多個檔案，每檔最多 25 MB，建立作業時一起上傳。</p>
+            <p v-if="attachmentProgress" role="status" class="text-sm text-sky-700">{{ attachmentProgress }}</p>
+            <p v-if="createAttachmentError" role="alert" class="text-sm text-red-700">{{ createAttachmentError }}</p>
           </div>
           <div class="space-y-2">
             <Label>提交方式</Label>
@@ -633,7 +679,7 @@ function handleLogout() {
             </Label>
           </div>
           <div class="flex justify-end gap-2">
-            <Button variant="outline" @click="isCreateDialogOpen = false">取消</Button>
+            <Button variant="outline" :disabled="isCreating" @click="isCreateDialogOpen = false">取消</Button>
             <Button
               :disabled="!newAssignment.title.trim() || isCreating"
               @click="handleCreateAssignment"
@@ -653,6 +699,7 @@ function handleLogout() {
           <DialogTitle>{{ previewAssignment?.title }}</DialogTitle>
           <p class="text-sm text-slate-500 mt-1">這是學生會看到的作業內文</p>
         </DialogHeader>
+        <AssignmentAttachments v-if="isPreviewDialogOpen && previewAssignment" :assignment-id="previewAssignment.id" />
         <div v-if="previewAssignment?.description" class="assignment-document">
           <MarkdownRenderer :content="previewAssignment.description" />
         </div>
@@ -663,12 +710,14 @@ function handleLogout() {
     </Dialog>
 
     <!-- Edit Assignment Dialog -->
-    <Dialog v-model:open="isEditDialogOpen" class="max-w-5xl max-h-[90vh] overflow-y-auto">
+    <Dialog v-model:open="isEditDialogOpen" :dismissible="!attachmentsBusy && !isEditing" class="max-w-5xl max-h-[90vh] overflow-y-auto">
       <div class="space-y-4">
         <DialogHeader>
           <DialogTitle>編輯作業</DialogTitle>
         </DialogHeader>
         <div class="space-y-4">
+          <p v-if="attachmentNotice" role="alert" class="text-sm text-amber-700 whitespace-pre-line">{{ attachmentNotice }}</p>
+          <AssignmentAttachments v-if="isEditDialogOpen && editingAssignment" :assignment-id="editingAssignment.id" editable @busy="attachmentsBusy = $event" />
           <div class="space-y-2">
             <Label for="edit-title">作業標題</Label>
             <Input
@@ -742,9 +791,9 @@ function handleLogout() {
             </Label>
           </div>
           <div class="flex justify-end gap-2">
-            <Button variant="outline" @click="isEditDialogOpen = false">取消</Button>
+            <Button variant="outline" :disabled="attachmentsBusy || isEditing" @click="isEditDialogOpen = false">取消</Button>
             <Button
-              :disabled="!editForm.title.trim() || isEditing"
+              :disabled="!editForm.title.trim() || isEditing || attachmentsBusy"
               @click="handleEditAssignment"
             >
               <Loader2 v-if="isEditing" class="mr-2 h-4 w-4 animate-spin" />

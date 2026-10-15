@@ -1,6 +1,6 @@
 {
   "name": "classroom-cli",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "作業管理系統 CLI 工具",
   "type": "module",
   "bin": {

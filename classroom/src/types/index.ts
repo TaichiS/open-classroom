@@ -56,6 +56,17 @@ export interface Assignment {
   showcaseRequireApproval: boolean
 }
 
+// 每份作業的教材附件（學生繳交內容另行管理）
+export interface AssignmentAttachment {
+  id: string
+  assignmentId: string
+  fileName: string
+  size: number
+  mimeType: string
+  status: 'pending' | 'ready' | 'deleting'
+  createdAt: string
+}
+
 // 提交狀態
 export type SubmissionStatus = 'pending' | 'completed' | 'late'
 

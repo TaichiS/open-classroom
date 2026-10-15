@@ -167,7 +167,9 @@ export async function updateAssignment(id: string, patch: Partial<Omit<Assignmen
 }
 
 export async function deleteAssignment(id: string): Promise<void> {
-  await supabase.from('assignments').delete().eq('id', id)
+  const { error } = await supabase.from('assignments').delete().eq('id', id)
+  if (error?.code === '23503' || error?.code === '23001') throw new Error('請先在「編輯作業」中刪除附件，再刪除此作業。')
+  if (error) throw new Error(error.message)
 }
 
 // ─── Submissions ──────────────────────────────────────────────────────────────

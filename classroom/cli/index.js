@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { program } from 'commander'
 import { loadConfig, saveConfig } from './config.js'
+import { registerAttachments } from './commands/attachments.js'
 import { registerMe } from './commands/me.js'
 import { registerCourses } from './commands/courses.js'
 import { registerAssignments } from './commands/assignments.js'
@@ -12,7 +13,7 @@ import { registerNewsletter } from './commands/newsletter.js'
 program
   .name('classroom')
   .description('作業管理系統 CLI 工具')
-  .version('1.0.0')
+  .version('1.1.0')
 
 // classroom config --key <key> [--url <url>]
 // classroom config show
@@ -60,6 +61,7 @@ program
     if (updates.selfEmail) console.log(`  Self Email: ${updates.selfEmail}`)
   })
 
+registerAttachments(program)
 registerMe(program)
 registerCourses(program)
 registerAssignments(program)
@@ -68,4 +70,7 @@ registerStats(program)
 registerDiscussions(program)
 registerNewsletter(program)
 
-program.parseAsync()
+program.parseAsync().catch(error => {
+  console.error(error.message)
+  process.exitCode = 1
+})

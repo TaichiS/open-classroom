@@ -23,13 +23,11 @@ export async function apiCall(path, { method = 'GET', body, params } = {}) {
   try {
     data = JSON.parse(text)
   } catch {
-    console.error(`API 回傳非 JSON：${text}`)
-    process.exit(1)
+    throw new Error('API 回傳非 JSON，請確認伺服器網址與附件 API 部署狀態')
   }
 
   if (!res.ok) {
-    console.error(`API 錯誤 [${res.status}]：${data?.error ?? text}`)
-    process.exit(1)
+    throw new Error(`API 錯誤 [${res.status}]：${data?.error ?? '請求失敗'}`)
   }
 
   return data

@@ -1,6 +1,6 @@
-import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'node:url'
+import { loadEnv, type Plugin } from 'vite'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -9,10 +9,15 @@ const __dirname = path.dirname(__filename)
 let apiIndex: any = null
 let warmupComplete = false
 
-export default function apiMiddleware() {
+export default function apiMiddleware(): Plugin {
   return {
     name: 'api-middleware',
     async configureServer(server) {
+      // API 專用設定只放在開發伺服器程序，不以 VITE_ 或 define 暴露給瀏覽器。
+      const env = loadEnv(server.config.mode, server.config.envDir, 'SUPABASE_')
+      for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) {
+        if (!process.env[key] && env[key]) process.env[key] = env[key]
+      }
       server.middlewares.use(async (req, res, next) => {
         // 只處理 /api/* 路由
         if (!req.url?.startsWith('/api/')) {
@@ -26,7 +31,7 @@ export default function apiMiddleware() {
           if (!warmupComplete) {
             console.log('🔥 預熱 API 快取...')
             const indexPath = path.join(__dirname, '..', '..', 'api', '_router.ts')
-            const indexModule = await import(indexPath)
+            const indexModule = await server.ssrLoadModule(indexPath)
             apiIndex = indexModule
             await apiIndex.warmupCache()
             warmupComplete = true
@@ -53,13 +58,15 @@ export default function apiMiddleware() {
           console.log(`✅ 找到處理器: ${apiPath}`)
 
           // 建構 Request 物件
-          const request = new Request(url.toString(), {
+          const requestInit: RequestInit & { duplex: 'half' } = {
             method: req.method || 'GET',
             headers: new Headers(req.headers as Record<string, string>),
+            duplex: 'half',
             body: req.method !== 'GET' && req.method !== 'HEAD'
               ? req as any
               : undefined,
-          })
+          }
+          const request = new Request(url.toString(), requestInit)
 
           // 執行處理器
           const response = await handler(request)
