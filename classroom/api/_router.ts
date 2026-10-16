@@ -80,7 +80,7 @@ export async function findHandler(pathname: string): Promise<Function | null> {
 
   // 檢查動態路徑模式
   for (const { pattern, handler } of dynamicPatterns) {
-    if (pattern.test(normalizedPath)) {
+    if (pattern.test(pathWithSlash)) {
       console.log(`✅ 動態路由匹配: ${normalizedPath} -> ${handler}`)
       return loadHandler(handler)
     }

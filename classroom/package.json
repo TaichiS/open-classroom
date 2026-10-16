@@ -8,7 +8,8 @@
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "test:attachments": "node scripts/test-attachments.mjs",
-    "check:api": "tsc -p api/tsconfig.json --noEmit"
+    "check:api": "tsc -p api/tsconfig.json --noEmit",
+    "test:routing": "node scripts/test-routing.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",

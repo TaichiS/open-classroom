@@ -23,7 +23,7 @@ export async function apiCall(path, { method = 'GET', body, params } = {}) {
   try {
     data = JSON.parse(text)
   } catch {
-    throw new Error('API 回傳非 JSON，請確認伺服器網址與附件 API 部署狀態')
+    throw new Error(`API 回傳非 JSON [${res.status}]：${method} ${new URL(url).pathname}，請確認伺服器網址與 API 路由部署狀態`)
   }
 
   if (!res.ok) {
