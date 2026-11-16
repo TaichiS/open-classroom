@@ -79,8 +79,6 @@ const errorMessage = ref('')
 const isEditingMaterial = ref(false)
 const isSavingMaterial = ref(false)
 const saveMaterialError = ref('')
-// vue-tsc 3.3 遇到元件屬性值含 // 會誤判 v-for 變數範圍，改由常數綁定
-const urlPlaceholder = 'https://...'
 const materialLinksInput = ref([
   { title: '', url: '' },
   { title: '', url: '' },
@@ -455,7 +453,7 @@ function handleLogout() {
                 <Input v-model="link.title" placeholder="標題（選填）" />
               </div>
               <div class="flex-1">
-                <Input v-model="link.url" type="url" :placeholder="urlPlaceholder" />
+                <Input v-model="link.url" type="url" placeholder="https://..." />
               </div>
             </div>
             <p v-if="saveMaterialError" class="text-sm text-red-600">{{ saveMaterialError }}</p>
